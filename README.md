@@ -122,6 +122,26 @@ The nutrition system thinks for you, and by default **never makes a paid API cal
 
 ---
 
+## Deploy free on GitHub Pages
+
+This repo is wired to publish itself to GitHub Pages — free, HTTPS, fully installable. Your
+tracked data never leaves your browser, so the public repo only contains the app's code.
+
+1. **Create a repo on GitHub** and push this project to its `main` branch.
+2. In the repo, go to **Settings → Pages → Build and deployment → Source** and choose
+   **GitHub Actions**.
+3. That's it. Every push to `main` runs `.github/workflows/deploy.yml`, which builds the app and
+   publishes it. Your live URL appears under **Settings → Pages** (e.g.
+   `https://<username>.github.io/<repo>/`).
+4. Open that URL in Safari on your iPhone and **Add to Home Screen** (steps above).
+
+The base path is derived automatically from the repo name at build time (`vite.config.ts` reads
+`GITHUB_REPOSITORY`), so it works whatever you name the repo — including a root
+`<username>.github.io` site. To build locally for a project subpath, pass the base explicitly:
+`VITE_BASE=/<repo>/ npm run build`.
+
+---
+
 ## What's complete
 
 Everything in the spec is functional — no dead placeholder screens (the only "coming soon"

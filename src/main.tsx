@@ -10,9 +10,12 @@ import { settingsStore } from './data/collections'
 ensureSeeded()
 document.documentElement.classList.toggle('dark', settingsStore.get().darkMode)
 
+// Strip the trailing slash so React Router gets "/repo" (or "" at the root).
+const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <App />
     </BrowserRouter>
   </StrictMode>,
