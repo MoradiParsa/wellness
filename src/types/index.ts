@@ -232,6 +232,39 @@ export interface WeightEntry {
   createdAt: string
 }
 
+/** A manually-entered / pasted daily health row (Garmin → Apple Health → here). */
+export interface HealthEntry {
+  /** = ISO date key (one row per day) */
+  id: string
+  date: string
+  steps?: number
+  /** kcal burned through activity */
+  activeCalories?: number
+  /** total kcal burned (active + resting) */
+  caloriesBurned?: number
+  sleepHours?: number
+  restingHeartRate?: number
+  avgHeartRate?: number
+  workoutMinutes?: number
+  notes?: string
+}
+
+/** A single favorited food for one-tap re-adding. */
+export interface SavedFood {
+  id: string
+  createdAt: string
+  item: MealItem
+}
+
+/** A named, reusable multi-food meal template. */
+export interface SavedMeal {
+  id: string
+  name: string
+  items: MealItem[]
+  mealType?: MealType
+  createdAt: string
+}
+
 export interface Task {
   id: string
   title: string

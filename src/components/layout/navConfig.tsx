@@ -26,6 +26,7 @@ export const NAV_VISIBLE_PATHS = new Set([
   '/tasks',
   '/analytics',
   '/progress',
+  '/health',
   '/settings',
 ])
 

@@ -10,6 +10,7 @@ import {
   Database,
   Sparkles,
   FileSpreadsheet,
+  HeartPulse,
 } from 'lucide-react'
 import { TabPage } from '@/components/layout/TabPage'
 import { ListGroup, ListRow } from '@/components/shared/List'
@@ -23,6 +24,7 @@ export function MoreMenuPage() {
     <TabPage title="More" subtitle={settings.name ? `Hi, ${settings.name}` : 'Everything else'}>
       <ListGroup>
         <ListRow icon={LineChart} label="Weekly Progress" sublabel="Weight, calories & adjustments" chevron onClick={() => navigate('/progress')} />
+        <ListRow icon={HeartPulse} label="Health Import" sublabel="Steps, sleep, heart rate & recovery" chevron onClick={() => navigate('/health')} />
         <ListRow icon={ListChecks} label="Tasks & Habits" chevron onClick={() => navigate('/tasks')} />
         <ListRow icon={BarChart3} label="Analytics" chevron onClick={() => navigate('/analytics')} />
         <ListRow icon={SlidersHorizontal} label="Settings" chevron onClick={() => navigate('/settings')} />

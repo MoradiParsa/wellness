@@ -1,6 +1,7 @@
 import { settingsStore, weightsStore, workoutsStore, programsStore, adjustmentsStore } from '@/data/collections'
 import { computeWeightTrend, volumeWithinDays } from './metrics'
 import { bulkCutCoach } from './phase'
+import { compositionTrend, bulkOptimizationCoach, healthCoachLine } from './bodyComp'
 import { suggestOverload } from './overload'
 import { lastEntryForExercise } from '@/hooks/useWorkouts'
 import { exerciseName } from '@/hooks/useExercises'
@@ -51,7 +52,11 @@ export function buildDailyBrief(): DailyBrief {
   const todaysAdjustment = adjustmentsStore.getAll().find((a) => a.date === today)
   const strengthTrendUp =
     workouts.length >= 2 && volumeWithinDays(workouts, 7) >= volumeWithinDays(workouts, 14) - volumeWithinDays(workouts, 7)
-  const phaseCoach = bulkCutCoach(s, weights, { strengthTrendUp })
+
+  // Prefer the composition-aware bulk optimizer; fall back to the weight-only coach.
+  const comp = compositionTrend()
+  const optimized = bulkOptimizationCoach(s, weeklyRateValue, strengthTrendUp, comp)
+  const phaseCoach = optimized ?? bulkCutCoach(s, weights, { strengthTrendUp })
 
   let coachTitle = phaseCoach.title
   let coachBody = phaseCoach.body
@@ -61,6 +66,10 @@ export function buildDailyBrief(): DailyBrief {
     coachBody = todaysAdjustment.reason
     tone = 'warning'
   }
+
+  // Append a manual-health-data line (recovery / extra burn) when available.
+  const healthLine = healthCoachLine()
+  if (healthLine) coachBody += (coachBody ? ' ' : '') + healthLine
 
   // Workout tip from progressive overload on the first lift of today's session.
   if (!trainedToday && suggestedDay && suggestedDay.exercises.length) {

@@ -1,6 +1,7 @@
 import type { Settings, Profile, Phase, CalorieAdjustment } from '@/types'
 import { ACTIVITY_LEVELS } from '@/lib/constants'
 import { settingsStore, weightsStore, adjustmentsStore } from '@/data/collections'
+import { compositionTrend } from './bodyComp'
 import { uid } from '@/lib/id'
 import { todayKey, daysAgo } from '@/lib/date'
 import { kgToLb, toDisplayWeight, clamp } from '@/lib/format'
@@ -175,6 +176,15 @@ export function maybeWeeklyAdjust(): CalorieAdjustment | null {
 
   const magnitude = Math.abs(diff) > tolerance * 2 ? 200 : 100
   const direction = actual < expected ? 1 : -1 // under expected → eat more
+
+  // Protein-first: don't add calories to fix what is really a protein gap.
+  if (direction === 1) {
+    const comp = compositionTrend()
+    if (comp.proteinAdherence != null && comp.proteinAdherence < 0.8 && comp.loggedDays >= 3) {
+      settingsStore.set({ lastWeeklyAdjust: todayKey() })
+      return null
+    }
+  }
   const bmr = Math.round(mifflinBMR(s.profile, currentWeightKg()))
   const floor = Math.max(1200, Math.round(bmr * 1.05))
   const ceil = s.estimatedTDEE + 1200

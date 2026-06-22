@@ -306,6 +306,10 @@ export function Settings() {
         <ListRow icon={Database} label="Export, import & reset" chevron onClick={() => navigate('/settings/data')} />
       </ListGroup>
 
+      <ListGroup title="Health">
+        <ListRow icon={HeartPulse} label="Health Import" sublabel="Enter steps, sleep & heart rate — used for recovery coaching" chevron onClick={() => navigate('/health')} />
+      </ListGroup>
+
       <ListGroup title="Future integrations">
         <ListRow icon={HeartPulse} iconClassName="bg-secondary text-muted-foreground" label="Apple Health · Garmin · Google Fit" sublabel="Auto-import steps, active calories & sleep into your TDEE" value="Soon" />
         <ListRow icon={Cloud} iconClassName="bg-secondary text-muted-foreground" label="Cloud sync (Supabase / Firebase)" sublabel="Back up and sync across devices" value="Soon" />

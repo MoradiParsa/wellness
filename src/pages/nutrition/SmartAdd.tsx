@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Mic, MicOff, Sparkles, Plus, Loader2, Copy, Check, History } from 'lucide-react'
+import { Mic, MicOff, Sparkles, Plus, Loader2, Copy, Check, History, Star, Bookmark } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { FullScreenPage } from '@/components/layout/FullScreenPage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,6 +25,7 @@ import { useSettings } from '@/hooks/useSettings'
 import { useNutrition } from '@/hooks/useNutrition'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { useRecentFoods } from '@/hooks/useRecentFoods'
+import { useMealLibrary } from '@/hooks/useMealLibrary'
 import {
   parseAndResolve,
   resolveBarcode,
@@ -39,6 +41,41 @@ import { cn } from '@/lib/utils'
 import type { MealItem, MealType } from '@/types'
 
 type Mode = 'describe' | 'photo' | 'barcode'
+
+function QuickRow({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="mb-2 flex items-center gap-1.5 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <Icon className="size-3.5" /> {title}
+      </p>
+      <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 no-scrollbar">{children}</div>
+    </div>
+  )
+}
+
+function FoodChip({
+  item,
+  fav,
+  onAdd,
+  onToggleFav,
+}: {
+  item: MealItem
+  fav: boolean
+  onAdd: () => void
+  onToggleFav: () => void
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-card py-1 pl-3 pr-1 text-[13px] font-medium">
+      <button onClick={onAdd} className="flex items-center gap-1.5 tap-scale">
+        {item.name}
+        <span className="text-muted-foreground">{item.calories}</span>
+      </button>
+      <button onClick={onToggleFav} className="flex size-6 items-center justify-center rounded-full active:bg-secondary" aria-label="Toggle favorite">
+        <Star className={cn('size-3.5', fav ? 'fill-warning text-warning' : 'text-muted-foreground/50')} />
+      </button>
+    </div>
+  )
+}
 
 function parsePastedAI(text: string): MealItem[] {
   try {
@@ -71,6 +108,7 @@ export function SmartAdd() {
   const { addMeal } = useNutrition(date)
   const speech = useSpeechRecognition()
   const recents = useRecentFoods()
+  const lib = useMealLibrary()
 
   const [mode, setMode] = useState<Mode>('describe')
   const [text, setText] = useState('')
@@ -156,6 +194,17 @@ export function SmartAdd() {
     } else toast.error('Could not read that JSON.')
   }
 
+  const saveAsMeal = () => {
+    const filled = items.filter((i) => i.name.trim())
+    if (filled.length === 0) {
+      toast.error('Add at least one food first.')
+      return
+    }
+    const name = mealName.trim() || filled[0].name || 'Meal'
+    lib.saveMealTemplate(name, filled, mealType)
+    toast.success(`Saved "${name}" — tap it next time to log in one tap`)
+  }
+
   const save = () => {
     const filled = items.filter((i) => i.name.trim() && (i.calories > 0 || i.protein > 0 || i.carbs > 0 || i.fat > 0))
     if (filled.length === 0) {
@@ -205,24 +254,40 @@ export function SmartAdd() {
 
       {mode === 'describe' && (
         <div className="space-y-3">
+          {lib.savedMeals.length > 0 && (
+            <QuickRow icon={Bookmark} title="Saved meals">
+              {lib.savedMeals.map((sm) => (
+                <button
+                  key={sm.id}
+                  onClick={() => {
+                    append(sm.items.map((i) => ({ ...i })))
+                    setMealName(sm.name)
+                    if (sm.mealType) setMealType(sm.mealType)
+                    toast.success(`Added ${sm.name}`)
+                  }}
+                  className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[13px] font-medium tap-scale active:bg-secondary"
+                >
+                  {sm.name}
+                  <span className="text-muted-foreground">{sumItems(sm.items).calories}</span>
+                </button>
+              ))}
+            </QuickRow>
+          )}
+
+          {lib.favorites.length > 0 && (
+            <QuickRow icon={Star} title="Favorites">
+              {lib.favorites.map((f) => (
+                <FoodChip key={f.id} item={f.item} fav onAdd={() => append([{ ...f.item }])} onToggleFav={() => lib.toggleFavorite(f.item)} />
+              ))}
+            </QuickRow>
+          )}
+
           {recents.length > 0 && (
-            <div>
-              <p className="mb-2 flex items-center gap-1.5 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                <History className="size-3.5" /> Recent · tap to add
-              </p>
-              <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 no-scrollbar">
-                {recents.map((r, i) => (
-                  <button
-                    key={i}
-                    onClick={() => append([{ ...r }])}
-                    className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[13px] font-medium tap-scale active:bg-secondary"
-                  >
-                    {r.name}
-                    <span className="text-muted-foreground">{r.calories}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <QuickRow icon={History} title="Recent · tap to add">
+              {recents.map((r, i) => (
+                <FoodChip key={i} item={r} fav={lib.isFavorite(r)} onAdd={() => append([{ ...r }])} onToggleFav={() => lib.toggleFavorite(r)} />
+              ))}
+            </QuickRow>
           )}
 
           <div className="relative">
@@ -277,7 +342,7 @@ export function SmartAdd() {
                   <p className="text-xs text-muted-foreground">{ai.reason}</p>
                   <p className="mt-1 text-xs text-muted-foreground">Use the free route — your photo is saved either way:</p>
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    <Button variant="secondary" size="sm" onClick={copyPrompt}><Copy className="size-4" /> Copy AI prompt</Button>
+                    <Button variant="secondary" size="sm" onClick={copyPrompt}><Copy className="size-4" /> Copy AI Estimate Prompt</Button>
                     <Button variant="secondary" size="sm" onClick={() => append([blankFoodItem()])}><Plus className="size-4" /> Enter manually</Button>
                   </div>
                 </div>
@@ -316,6 +381,9 @@ export function SmartAdd() {
               <Input value={mealName} onChange={(e) => setMealName(e.target.value)} placeholder={items[0]?.name || 'Meal'} />
             </div>
             <SegmentedControl size="sm" layoutId="smartadd-meal" value={mealType} onChange={setMealType} options={MEAL_TYPES.map((m) => ({ value: m.value, label: m.label }))} />
+            <Button variant="secondary" size="sm" className="w-full" onClick={saveAsMeal}>
+              <Bookmark className="size-4" /> Save as a reusable meal
+            </Button>
           </div>
         </div>
       )}

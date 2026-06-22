@@ -10,6 +10,9 @@ import type {
   WeightEntry,
   Task,
   CalorieAdjustment,
+  HealthEntry,
+  SavedFood,
+  SavedMeal,
 } from '@/types'
 
 // Central registry of every persisted collection. To migrate to a backend
@@ -24,3 +27,6 @@ export const waterStore = createCollection<WaterEntry>('water')
 export const weightsStore = createCollection<WeightEntry>('weights')
 export const tasksStore = createCollection<Task>('tasks')
 export const adjustmentsStore = createCollection<CalorieAdjustment>('adjustments')
+export const healthStore = createCollection<HealthEntry>('health')
+export const savedFoodsStore = createCollection<SavedFood>('savedFoods')
+export const savedMealsStore = createCollection<SavedMeal>('savedMeals')

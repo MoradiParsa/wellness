@@ -3,6 +3,7 @@ import type { FoodHit, FoodMacros, ParsedLine } from './types'
 import { findLocalFood, DEFAULT_UNIT_GRAMS } from './foods'
 import { parseFoodText } from './parse'
 import { searchUSDA, searchOpenFoodFacts, lookupBarcode } from './providers'
+import { mealsStore } from '@/data/collections'
 
 export * from './ai'
 export { parseFoodText } from './parse'
@@ -63,10 +64,40 @@ function blankItem(line: ParsedLine): MealItem {
   }
 }
 
-/** Resolve one parsed line, free-first: local → USDA → OpenFoodFacts → manual. */
+/** A previously-logged food, normalized to per-100 g so it can be re-scaled. */
+function findCachedFood(name: string): FoodHit | undefined {
+  const want = name.trim().toLowerCase()
+  const meals = [...mealsStore.getAll()].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  for (const m of meals) {
+    for (const it of m.items ?? []) {
+      if (it.name.trim().toLowerCase() === want && it.grams && it.grams > 0) {
+        const k = 100 / it.grams
+        return {
+          name: it.name,
+          source: it.source,
+          per100g: {
+            calories: it.calories * k,
+            protein: it.protein * k,
+            carbs: it.carbs * k,
+            fat: it.fat * k,
+            fiber: (it.fiber ?? 0) * k,
+          },
+          unitGrams:
+            it.unit && it.quantity > 0 ? { [it.unit]: it.grams / it.quantity } : undefined,
+        }
+      }
+    }
+  }
+  return undefined
+}
+
+/** Resolve one line, free-first: local → cached → USDA → OpenFoodFacts → manual. */
 export async function resolveLine(line: ParsedLine, settings: Settings): Promise<MealItem> {
   const local = findLocalFood(line.name)
   if (local) return itemFromHit(line, local)
+
+  const cached = findCachedFood(line.name)
+  if (cached) return itemFromHit(line, cached)
 
   const usda = await searchUSDA(line.name, settings.ai.usdaKey)
   if (usda) return itemFromHit(line, usda)

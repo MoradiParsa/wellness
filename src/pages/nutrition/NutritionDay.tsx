@@ -8,7 +8,9 @@ import {
   Droplet,
   History,
   Trash2,
+  Repeat2,
 } from 'lucide-react'
+import type { Meal } from '@/types'
 import { TabPage } from '@/components/layout/TabPage'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -28,7 +30,24 @@ export function NutritionDay() {
   const navigate = useNavigate()
   const { settings } = useSettings()
   const [date, setDate] = useState(todayKey())
-  const { meals, totals, water, addWater, removeMeal, saveMeal } = useNutrition(date)
+  const { meals, totals, water, addWater, removeMeal, saveMeal, addMeal } = useNutrition(date)
+
+  const repeatMeal = (m: Meal) => {
+    addMeal({
+      date,
+      name: m.name,
+      calories: m.calories,
+      protein: m.protein,
+      carbs: m.carbs,
+      fat: m.fat,
+      fiber: m.fiber,
+      mealType: m.mealType,
+      photo: m.photo,
+      notes: m.notes,
+      items: m.items ? m.items.map((i) => ({ ...i })) : undefined,
+    })
+    toast.success(`Repeated ${m.name}`)
+  }
   const adjustments = useCollection(adjustmentsStore)
   const recentAdjustment = [...adjustments]
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -162,6 +181,14 @@ export function NutritionDay() {
                     </span>
                   )}
                 </span>
+              </button>
+              <button
+                onClick={() => repeatMeal(m)}
+                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground active:bg-secondary"
+                aria-label="Repeat meal"
+                title="Log this again"
+              >
+                <Repeat2 className="size-4" />
               </button>
               <button
                 onClick={() => {
