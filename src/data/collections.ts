@@ -13,6 +13,7 @@ import type {
   HealthEntry,
   SavedFood,
   SavedMeal,
+  VerifiedFood,
 } from '@/types'
 
 // Central registry of every persisted collection. To migrate to a backend
@@ -30,3 +31,4 @@ export const adjustmentsStore = createCollection<CalorieAdjustment>('adjustments
 export const healthStore = createCollection<HealthEntry>('health')
 export const savedFoodsStore = createCollection<SavedFood>('savedFoods')
 export const savedMealsStore = createCollection<SavedMeal>('savedMeals')
+export const verifiedFoodsStore = createCollection<VerifiedFood>('verifiedFoods')

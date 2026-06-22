@@ -16,6 +16,9 @@ export interface FoodHit {
   per100g: FoodMacros
   /** Gram weights for count/volume units specific to this food (e.g. egg: 50). */
   unitGrams?: Record<string, number>
+  /** grams in one labeled serving (e.g. one slice) when known */
+  servingGrams?: number
+  barcode?: string
 }
 
 export interface ParsedLine {

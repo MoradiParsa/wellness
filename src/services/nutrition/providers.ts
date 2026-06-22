@@ -59,22 +59,46 @@ function offMacros(nutriments: any): FoodMacros {
   }
 }
 
-export async function searchOpenFoodFacts(query: string): Promise<FoodHit | null> {
-  const url =
-    `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(query)}` +
-    `&fields=product_name,brands,nutriments&page_size=1&sort_by=popularity_key`
-  const data = await fetchJSON(url)
-  const p = data?.products?.[0]
+/** Grams in one serving, parsed from OFF's serving_quantity / serving_size. */
+function offServingGrams(p: any): number | undefined {
+  const q = num(p?.serving_quantity)
+  if (q > 0) return q
+  const m = String(p?.serving_size ?? '').match(/([\d.]+)\s*g/i)
+  return m ? Number(m[1]) : undefined
+}
+
+function offToHit(p: any): FoodHit | null {
   if (!p?.nutriments) return null
   const per100g = offMacros(p.nutriments)
   if (per100g.calories === 0 && per100g.protein === 0) return null
-  return { name: p.product_name || query, brand: p.brands, source: 'openfoodfacts', per100g }
+  const servingGrams = offServingGrams(p)
+  return {
+    name: p.product_name || 'Product',
+    brand: typeof p.brands === 'string' ? p.brands.split(',')[0].trim() : undefined,
+    source: 'openfoodfacts',
+    per100g,
+    servingGrams,
+    barcode: p.code,
+    // map count/serving units to one serving so "2 slices" scales correctly
+    unitGrams: servingGrams ? { slice: servingGrams, serving: servingGrams, piece: servingGrams } : undefined,
+  }
+}
+
+/** Top branded candidates for a query (free, no key). Best match first. */
+export async function searchOpenFoodFacts(query: string, pageSize = 6): Promise<FoodHit[]> {
+  const url =
+    `https://world.openfoodfacts.org/api/v2/search?search_terms=${encodeURIComponent(query)}` +
+    `&fields=product_name,brands,nutriments,serving_size,serving_quantity,code&page_size=${pageSize}&sort_by=popularity_key`
+  const data = await fetchJSON(url)
+  const products: any[] = Array.isArray(data?.products) ? data.products : []
+  return products.map(offToHit).filter((h): h is FoodHit => h != null)
 }
 
 export async function lookupBarcode(code: string): Promise<FoodHit | null> {
-  const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,brands,nutriments`
+  const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(code)}.json?fields=product_name,brands,nutriments,serving_size,serving_quantity,code`
   const data = await fetchJSON(url)
   if (data?.status !== 1 || !data?.product?.nutriments) return null
-  const p = data.product
-  return { name: p.product_name || `Item ${code}`, brand: p.brands, source: 'openfoodfacts', per100g: offMacros(p.nutriments) }
+  const hit = offToHit({ ...data.product, code })
+  if (hit && !hit.name) hit.name = `Item ${code}`
+  return hit
 }

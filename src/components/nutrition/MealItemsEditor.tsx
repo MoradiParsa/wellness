@@ -2,7 +2,8 @@ import { Plus, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { sumItems } from '@/services/nutrition'
-import type { MealItem, FoodSource } from '@/types'
+import { cn } from '@/lib/utils'
+import type { MealItem, FoodSource, MatchQuality } from '@/types'
 
 const sourceLabel: Record<FoodSource, string> = {
   local: 'Database',
@@ -10,6 +11,14 @@ const sourceLabel: Record<FoodSource, string> = {
   openfoodfacts: 'OpenFoodFacts',
   ai: 'AI',
   manual: 'Manual',
+  verified: 'My Foods',
+}
+
+const MATCH: Record<MatchQuality, { label: string; cls: string }> = {
+  exact: { label: 'Exact product match', cls: 'border-success/40 text-success' },
+  close: { label: 'Close product match', cls: 'border-warning/40 text-warning' },
+  generic: { label: 'Generic database match', cls: 'text-muted-foreground' },
+  estimate: { label: 'Manual estimate', cls: 'border-destructive/40 text-destructive' },
 }
 
 export function blankFoodItem(): MealItem {
@@ -42,12 +51,12 @@ export function MealItemRow({
           <X className="size-4" />
         </button>
       </div>
-      <div className="mb-2 flex items-center gap-2">
+      {item.brand && <p className="mb-1.5 px-0.5 text-xs text-muted-foreground">{item.brand}</p>}
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <Input value={item.quantity} onChange={(e) => onPatch({ quantity: Number(e.target.value) || 0 })} inputMode="decimal" className="h-9 w-16 text-center" />
         <Input value={item.unit} onChange={(e) => onPatch({ unit: e.target.value })} className="h-9 w-20 text-center" />
-        <Badge variant="outline" className="ml-auto">
-          {sourceLabel[item.source]}
-          {item.confidence != null ? ` · ${Math.round(item.confidence * 100)}%` : ''}
+        <Badge variant="outline" className={cn('ml-auto', item.match ? MATCH[item.match].cls : '')}>
+          {item.match ? MATCH[item.match].label : sourceLabel[item.source]}
         </Badge>
       </div>
       <div className="grid grid-cols-4 gap-2">

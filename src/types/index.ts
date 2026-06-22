@@ -17,7 +17,10 @@ export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack'
 export type Sex = 'male' | 'female'
 export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active'
 export type AiProvider = 'claude' | 'openai'
-export type FoodSource = 'local' | 'usda' | 'openfoodfacts' | 'ai' | 'manual'
+export type FoodSource = 'local' | 'usda' | 'openfoodfacts' | 'ai' | 'manual' | 'verified'
+
+/** How confident the lookup is in a resolved food. */
+export type MatchQuality = 'exact' | 'close' | 'generic' | 'estimate'
 
 /** Body profile used by the Smart Calorie Engine to estimate TDEE. */
 export interface Profile {
@@ -182,6 +185,10 @@ export interface MealItem {
   source: FoodSource
   /** 0–1 confidence for AI estimates */
   confidence?: number
+  /** brand name when resolved from a branded product */
+  brand?: string
+  /** how confident the lookup was — drives the review-screen label */
+  match?: MatchQuality
 }
 
 export interface Meal {
@@ -254,6 +261,24 @@ export interface SavedFood {
   id: string
   createdAt: string
   item: MealItem
+}
+
+/** A user-verified food (barcode, label scan, or confirmed branded product). */
+export interface VerifiedFood {
+  id: string
+  name: string
+  brand?: string
+  /** macros per 100 g */
+  per100g: { calories: number; protein: number; carbs: number; fat: number; fiber: number }
+  /** grams in one serving (for slice/serving/piece units) */
+  servingGrams?: number
+  /** label for one serving, e.g. "slice", "cup", "container" */
+  servingLabel?: string
+  /** extra label facts kept for reference (per serving) */
+  sugar?: number
+  sodium?: number
+  barcode?: string
+  createdAt: string
 }
 
 /** A named, reusable multi-food meal template. */

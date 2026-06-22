@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Mic, MicOff, Sparkles, Plus, Loader2, Copy, Check, History, Star, Bookmark } from 'lucide-react'
+import { Mic, MicOff, Sparkles, Plus, Loader2, Copy, Check, History, Star, Bookmark, ScanLine, Search, BadgeCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { FullScreenPage } from '@/components/layout/FullScreenPage'
 import { Button } from '@/components/ui/button'
@@ -26,21 +26,38 @@ import { useNutrition } from '@/hooks/useNutrition'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 import { useRecentFoods } from '@/hooks/useRecentFoods'
 import { useMealLibrary } from '@/hooks/useMealLibrary'
+import { useVerifiedFoods } from '@/hooks/useVerifiedFoods'
 import {
   parseAndResolve,
   resolveBarcode,
+  searchProducts,
+  addVerifiedFood,
+  verifiedFoodItem,
   sumItems,
   aiAvailability,
   aiUsageThisMonth,
   analyzePhotoAI,
   buildPhotoPrompt,
 } from '@/services/nutrition'
+import type { LabelFacts } from '@/services/nutrition/label'
 import { MEAL_TYPES } from '@/lib/constants'
 import { todayKey } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import type { MealItem, MealType } from '@/types'
 
-type Mode = 'describe' | 'photo' | 'barcode'
+type Mode = 'describe' | 'barcode' | 'label' | 'photo'
+
+const LABEL_FIELDS: { key: keyof LabelFacts; label: string; suffix?: string }[] = [
+  { key: 'calories', label: 'Calories' },
+  { key: 'protein', label: 'Protein', suffix: 'g' },
+  { key: 'carbs', label: 'Carbs', suffix: 'g' },
+  { key: 'fat', label: 'Fat', suffix: 'g' },
+  { key: 'fiber', label: 'Fiber', suffix: 'g' },
+  { key: 'sugar', label: 'Sugar', suffix: 'g' },
+  { key: 'sodium', label: 'Sodium', suffix: 'mg' },
+  { key: 'servingGrams', label: 'Serving', suffix: 'g' },
+  { key: 'servingsPerContainer', label: 'Servings/container' },
+]
 
 function QuickRow({ icon: Icon, title, children }: { icon: LucideIcon; title: string; children: React.ReactNode }) {
   return (
@@ -109,6 +126,7 @@ export function SmartAdd() {
   const speech = useSpeechRecognition()
   const recents = useRecentFoods()
   const lib = useMealLibrary()
+  const { verifiedFoods } = useVerifiedFoods()
 
   const [mode, setMode] = useState<Mode>('describe')
   const [text, setText] = useState('')
@@ -122,6 +140,20 @@ export function SmartAdd() {
   const [items, setItems] = useState<MealItem[]>([])
   const [mealName, setMealName] = useState('')
   const [mealType, setMealType] = useState<MealType>('lunch')
+
+  // Branded product search (the "show close matches and choose" flow)
+  const [showSearch, setShowSearch] = useState(false)
+  const [query, setQuery] = useState('')
+  const [results, setResults] = useState<MealItem[]>([])
+  const [searching, setSearching] = useState(false)
+
+  // Nutrition-label OCR
+  const [labelPhoto, setLabelPhoto] = useState<string | undefined>()
+  const [scanning, setScanning] = useState(false)
+  const [scanned, setScanned] = useState(false)
+  const [labelForm, setLabelForm] = useState<Record<string, string>>({})
+  const [labelName, setLabelName] = useState('')
+  const [labelBrand, setLabelBrand] = useState('')
 
   useEffect(() => {
     if (speech.transcript) setText(speech.transcript)
@@ -154,12 +186,99 @@ export function SmartAdd() {
       const item = await resolveBarcode(barcode.trim())
       if (item) {
         append([item])
-        toast.success('Product found')
+        // cache the scanned product locally as a verified food
+        if (item.grams && item.grams > 0) {
+          const k = 100 / item.grams
+          addVerifiedFood({
+            name: item.name,
+            brand: item.brand,
+            per100g: {
+              calories: Math.round(item.calories * k),
+              protein: Math.round(item.protein * k),
+              carbs: Math.round(item.carbs * k),
+              fat: Math.round(item.fat * k),
+              fiber: Math.round((item.fiber ?? 0) * k),
+            },
+            servingGrams: item.unit === 'serving' ? item.grams : undefined,
+            barcode: barcode.trim(),
+          })
+        }
+        toast.success('Product found & saved to My Foods')
         setBarcode('')
       } else toast.error('Product not found in OpenFoodFacts.')
     } finally {
       setLoading(false)
     }
+  }
+
+  const runProductSearch = async () => {
+    if (!query.trim()) return
+    setSearching(true)
+    try {
+      const r = await searchProducts(query.trim())
+      setResults(r)
+      if (r.length === 0) toast.error('No branded matches found.')
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const scanLabel = async () => {
+    if (!labelPhoto) return
+    setScanning(true)
+    try {
+      const { scanNutritionLabel } = await import('@/services/nutrition/label')
+      const facts = await scanNutritionLabel(labelPhoto)
+      const form: Record<string, string> = {}
+      for (const f of LABEL_FIELDS) {
+        const v = facts[f.key]
+        if (typeof v === 'number') form[f.key] = String(v)
+      }
+      setLabelForm(form)
+      setScanned(true)
+      const got = Object.keys(form).length
+      toast.success(got ? `Read ${got} values — check & edit below` : 'Could not read much — enter manually')
+    } catch {
+      setScanned(true)
+      toast.error('OCR failed — enter the values manually.')
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  const saveLabelFood = () => {
+    const n = (k: string) => {
+      const v = Number(labelForm[k])
+      return isFinite(v) ? v : 0
+    }
+    const cal = n('calories')
+    if (!labelName.trim() || cal <= 0) {
+      toast.error('Add a food name and calories first.')
+      return
+    }
+    const sg = n('servingGrams') > 0 ? n('servingGrams') : undefined
+    const k = sg ? 100 / sg : 1
+    const v = addVerifiedFood({
+      name: labelName.trim(),
+      brand: labelBrand.trim() || undefined,
+      per100g: {
+        calories: Math.round(cal * k),
+        protein: Math.round(n('protein') * k),
+        carbs: Math.round(n('carbs') * k),
+        fat: Math.round(n('fat') * k),
+        fiber: Math.round(n('fiber') * k),
+      },
+      servingGrams: sg,
+      sugar: n('sugar') || undefined,
+      sodium: n('sodium') || undefined,
+    })
+    append([verifiedFoodItem(v)])
+    toast.success(`Saved "${v.name}" to My Foods`)
+    setLabelPhoto(undefined)
+    setScanned(false)
+    setLabelForm({})
+    setLabelName('')
+    setLabelBrand('')
   }
 
   const runPaidPhoto = async () => {
@@ -247,13 +366,32 @@ export function SmartAdd() {
         onChange={setMode}
         options={[
           { value: 'describe', label: 'Describe' },
-          { value: 'photo', label: 'Photo' },
           { value: 'barcode', label: 'Barcode' },
+          { value: 'label', label: 'Label' },
+          { value: 'photo', label: 'Photo' },
         ]}
       />
 
       {mode === 'describe' && (
         <div className="space-y-3">
+          {verifiedFoods.length > 0 && (
+            <QuickRow icon={BadgeCheck} title="My Foods · verified">
+              {verifiedFoods.map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => {
+                    append([verifiedFoodItem(v)])
+                    toast.success(`Added ${v.name}`)
+                  }}
+                  className="flex shrink-0 items-center gap-1.5 rounded-full border border-success/40 bg-card px-3 py-1.5 text-[13px] font-medium tap-scale active:bg-secondary"
+                >
+                  {v.name}
+                  <span className="text-muted-foreground">{v.per100g.calories && v.servingGrams ? Math.round((v.per100g.calories * v.servingGrams) / 100) : v.per100g.calories}</span>
+                </button>
+              ))}
+            </QuickRow>
+          )}
+
           {lib.savedMeals.length > 0 && (
             <QuickRow icon={Bookmark} title="Saved meals">
               {lib.savedMeals.map((sm) => (
@@ -324,6 +462,92 @@ export function SmartAdd() {
             Analyze
           </Button>
           <p className="px-1 text-xs text-muted-foreground">Free &amp; instant — matched against the food database. No AI charges.</p>
+
+          <button onClick={() => setShowSearch((v) => !v)} className="flex w-full items-center justify-center gap-1.5 px-1 pt-1 text-xs font-medium text-muted-foreground">
+            <Search className="size-3.5" /> Wrong match? Search branded products
+          </button>
+          {showSearch && (
+            <div className="space-y-2 rounded-2xl border border-border/70 bg-secondary/30 p-3">
+              <div className="flex gap-2">
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), runProductSearch())}
+                  placeholder="e.g. Nature's Own Butter Bread"
+                  className="h-10"
+                />
+                <Button size="sm" onClick={runProductSearch} disabled={searching || !query.trim()}>
+                  {searching ? <Loader2 className="size-4 animate-spin" /> : 'Search'}
+                </Button>
+              </div>
+              {results.map((r, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    append([{ ...r }])
+                    toast.success(`Added ${r.name}`)
+                  }}
+                  className="flex w-full items-center justify-between gap-2 rounded-xl border border-border/70 bg-card px-3 py-2 text-left active:bg-secondary"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium">{r.name}</span>
+                    {r.brand && <span className="block truncate text-xs text-muted-foreground">{r.brand}</span>}
+                  </span>
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{r.calories} kcal</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {mode === 'label' && (
+        <div className="space-y-3">
+          <PhotoPicker value={labelPhoto} onChange={(p) => { setLabelPhoto(p); setScanned(false) }} />
+          {labelPhoto && !scanned && (
+            <Button className="w-full" onClick={scanLabel} disabled={scanning}>
+              {scanning ? <Loader2 className="size-4 animate-spin" /> : <ScanLine className="size-4" />}
+              Scan nutrition label
+            </Button>
+          )}
+          {scanned && (
+            <div className="space-y-3 rounded-2xl border border-border/70 bg-secondary/30 p-4">
+              <div className="space-y-2">
+                <Label>Food name</Label>
+                <Input value={labelName} onChange={(e) => setLabelName(e.target.value)} placeholder="e.g. Butter Bread" />
+              </div>
+              <div className="space-y-2">
+                <Label>Brand (optional)</Label>
+                <Input value={labelBrand} onChange={(e) => setLabelBrand(e.target.value)} placeholder="e.g. Nature's Own" />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {LABEL_FIELDS.map((f) => (
+                  <label key={f.key} className="flex flex-col gap-1">
+                    <span className="px-0.5 text-[10px] font-medium uppercase text-muted-foreground">
+                      {f.label}
+                      {f.suffix ? ` (${f.suffix})` : ''}
+                    </span>
+                    <input
+                      value={labelForm[f.key] ?? ''}
+                      onChange={(e) => setLabelForm((p) => ({ ...p, [f.key]: e.target.value }))}
+                      inputMode="decimal"
+                      className="h-9 rounded-lg border border-border/70 bg-background px-2.5 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-ring/50"
+                    />
+                  </label>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Values are per serving — add the serving grams so amounts scale correctly.
+              </p>
+              <Button className="w-full" onClick={saveLabelFood}>
+                <BadgeCheck className="size-4" /> Save to My Foods &amp; add
+              </Button>
+            </div>
+          )}
+          <p className="px-1 text-xs text-muted-foreground">
+            Point at the Nutrition Facts panel (not the plate). Free on-device OCR — the first scan downloads the
+            recognizer (~few MB), then works offline.
+          </p>
         </div>
       )}
 
