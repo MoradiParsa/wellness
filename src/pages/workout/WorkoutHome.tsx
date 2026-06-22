@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Dumbbell, Pencil, History, Library, Play, ChevronRight, ClipboardList } from 'lucide-react'
+import { Dumbbell, Pencil, History, Library, Play, ChevronRight, ClipboardList, FileSpreadsheet } from 'lucide-react'
 import { TabPage } from '@/components/layout/TabPage'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -24,8 +24,11 @@ export function WorkoutHome() {
           description="Import your training split to start logging workouts and get progressive-overload coaching."
           action={
             <div className="flex flex-col gap-2">
-              <Button size="lg" onClick={() => navigate('/workout/program/new')}>
-                Import program
+              <Button size="lg" onClick={() => navigate('/workout/program/import')}>
+                <FileSpreadsheet className="size-5" /> Import from spreadsheet
+              </Button>
+              <Button variant="secondary" onClick={() => navigate('/workout/program/new')}>
+                Build program by hand
               </Button>
               <Button variant="ghost" onClick={() => navigate('/workout/exercises')}>
                 Browse exercise library

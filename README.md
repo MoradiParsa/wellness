@@ -37,6 +37,11 @@ your calories and macros for you** (no manual targets) and offers to import your
   - **Import Workout Program** — build your own split day-by-day: per exercise set the
     sets, rep range, starting weight, target RPE/RIR, rest, tempo, and notes. This program is
     saved as your active baseline (no generic templates are forced on you).
+  - **Import from a spreadsheet** — upload a CSV or Excel (`.xlsx`) export of an existing plan
+    (Workout → empty state, the import wizard, or More → Workout). It auto-detects columns
+    (Day, Exercise, Muscle Group, Sets, Reps, Weight, RPE, Rest, Notes) in any order, then lets
+    you review and edit every day and row before saving. If a column can't be matched it shows a
+    quick column-mapping screen, and nothing is saved until you tap **Commit Workout Plan**.
   - **Start workout** — the home screen suggests the next day in your rotation. Logging shows
     your **previous performance** and the **progressive-overload suggestion** inline, with a
     rest timer between sets.

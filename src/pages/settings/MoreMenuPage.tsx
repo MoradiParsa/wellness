@@ -9,6 +9,7 @@ import {
   History,
   Database,
   Sparkles,
+  FileSpreadsheet,
 } from 'lucide-react'
 import { TabPage } from '@/components/layout/TabPage'
 import { ListGroup, ListRow } from '@/components/shared/List'
@@ -29,6 +30,7 @@ export function MoreMenuPage() {
 
       <ListGroup title="Workout">
         <ListRow icon={ClipboardList} label="Manage program" chevron onClick={() => navigate('/workout')} />
+        <ListRow icon={FileSpreadsheet} label="Import from spreadsheet" sublabel="CSV or Excel" chevron onClick={() => navigate('/workout/program/import')} />
         <ListRow icon={Dumbbell} label="Exercise library" chevron onClick={() => navigate('/workout/exercises')} />
         <ListRow icon={History} label="Workout history" chevron onClick={() => navigate('/workout/history')} />
       </ListGroup>

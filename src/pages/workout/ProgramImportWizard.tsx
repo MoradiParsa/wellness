@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ClipboardList } from 'lucide-react'
+import { ClipboardList, FileSpreadsheet, ChevronRight } from 'lucide-react'
 import { FullScreenPage } from '@/components/layout/FullScreenPage'
 import { ProgramForm } from '@/components/workout/ProgramForm'
 import { toast } from '@/components/ui/sonner'
@@ -25,10 +25,26 @@ export function ProgramImportWizard() {
 
   return (
     <FullScreenPage title="Import program" noSwipe>
+      <button
+        onClick={() => navigate('/workout/program/import')}
+        className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-border/80 bg-card p-4 text-left active:bg-secondary/50"
+      >
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-secondary">
+          <FileSpreadsheet className="size-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold">Import from a spreadsheet</span>
+          <span className="block text-xs text-muted-foreground">
+            Upload a CSV or Excel file and review before saving
+          </span>
+        </span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+      </button>
+
       <div className="mb-5 flex gap-3 rounded-2xl border border-border/80 bg-card p-4">
         <ClipboardList className="size-5 shrink-0 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          Build your split exactly as you run it. Each exercise's sets, reps, starting weight and
+          Or build your split by hand. Each exercise's sets, reps, starting weight and
           target effort become the baseline your coach uses to suggest progressive overload.
         </p>
       </div>

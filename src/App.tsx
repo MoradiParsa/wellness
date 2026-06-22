@@ -17,6 +17,7 @@ import { MoreMenuPage } from '@/pages/settings/MoreMenuPage'
 import { DataManagement } from '@/pages/settings/DataManagement'
 import { WorkoutHome } from '@/pages/workout/WorkoutHome'
 import { ProgramImportWizard } from '@/pages/workout/ProgramImportWizard'
+import { SpreadsheetImport } from '@/pages/workout/SpreadsheetImport'
 import { ProgramEditor } from '@/pages/workout/ProgramEditor'
 import { ActiveSession } from '@/pages/workout/ActiveSession'
 import { ExerciseLibrary } from '@/pages/workout/ExerciseLibrary'
@@ -86,6 +87,7 @@ export function App() {
 
           <Route path="/workout" element={<WorkoutHome />} />
           <Route path="/workout/program/new" element={<ProgramImportWizard />} />
+          <Route path="/workout/program/import" element={<SpreadsheetImport />} />
           <Route path="/workout/program/:id/edit" element={<ProgramEditor />} />
           <Route path="/workout/session/:dayId" element={<ActiveSession />} />
           <Route path="/workout/session" element={<ActiveSession />} />
