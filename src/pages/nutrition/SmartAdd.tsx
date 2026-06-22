@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Mic, MicOff, Sparkles, Plus, X, Loader2, Copy, Check } from 'lucide-react'
+import { Mic, MicOff, Sparkles, Plus, Loader2, Copy, Check, History } from 'lucide-react'
 import { FullScreenPage } from '@/components/layout/FullScreenPage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { PhotoPicker } from '@/components/shared/PhotoPicker'
 import { SegmentedControl } from '@/components/shared/SegmentedControl'
+import { MealItemsEditor, blankFoodItem } from '@/components/nutrition/MealItemsEditor'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -23,6 +23,7 @@ import { toast } from '@/components/ui/sonner'
 import { useSettings } from '@/hooks/useSettings'
 import { useNutrition } from '@/hooks/useNutrition'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
+import { useRecentFoods } from '@/hooks/useRecentFoods'
 import {
   parseAndResolve,
   resolveBarcode,
@@ -35,21 +36,9 @@ import {
 import { MEAL_TYPES } from '@/lib/constants'
 import { todayKey } from '@/lib/date'
 import { cn } from '@/lib/utils'
-import type { MealItem, MealType, FoodSource } from '@/types'
+import type { MealItem, MealType } from '@/types'
 
 type Mode = 'describe' | 'photo' | 'barcode'
-
-const sourceLabel: Record<FoodSource, string> = {
-  local: 'Database',
-  usda: 'USDA',
-  openfoodfacts: 'OpenFoodFacts',
-  ai: 'AI',
-  manual: 'Manual',
-}
-
-function blankItem(): MealItem {
-  return { name: '', quantity: 1, unit: 'serving', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, source: 'manual' }
-}
 
 function parsePastedAI(text: string): MealItem[] {
   try {
@@ -81,6 +70,7 @@ export function SmartAdd() {
   const { settings } = useSettings()
   const { addMeal } = useNutrition(date)
   const speech = useSpeechRecognition()
+  const recents = useRecentFoods()
 
   const [mode, setMode] = useState<Mode>('describe')
   const [text, setText] = useState('')
@@ -95,17 +85,13 @@ export function SmartAdd() {
   const [mealName, setMealName] = useState('')
   const [mealType, setMealType] = useState<MealType>('lunch')
 
-  // Pipe live speech transcript into the text box.
   useEffect(() => {
     if (speech.transcript) setText(speech.transcript)
   }, [speech.transcript])
 
   const totals = sumItems(items)
   const ai = aiAvailability(settings)
-
   const append = (more: MealItem[]) => setItems((prev) => [...prev, ...more])
-  const patch = (i: number, p: Partial<MealItem>) => setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, ...p } : it)))
-  const removeItem = (i: number) => setItems((prev) => prev.filter((_, idx) => idx !== i))
 
   const analyzeText = async () => {
     if (!text.trim()) return
@@ -176,14 +162,15 @@ export function SmartAdd() {
       toast.error('Add at least one food with nutrition.')
       return
     }
+    const sum = sumItems(filled)
     addMeal({
       date,
       name: mealName.trim() || filled[0].name || 'Meal',
-      calories: totals.calories,
-      protein: totals.protein,
-      carbs: totals.carbs,
-      fat: totals.fat,
-      fiber: totals.fiber,
+      calories: sum.calories,
+      protein: sum.protein,
+      carbs: sum.carbs,
+      fat: sum.fat,
+      fiber: sum.fiber,
       mealType,
       photo,
       items: filled,
@@ -218,12 +205,38 @@ export function SmartAdd() {
 
       {mode === 'describe' && (
         <div className="space-y-3">
+          {recents.length > 0 && (
+            <div>
+              <p className="mb-2 flex items-center gap-1.5 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <History className="size-3.5" /> Recent · tap to add
+              </p>
+              <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 no-scrollbar">
+                {recents.map((r, i) => (
+                  <button
+                    key={i}
+                    onClick={() => append([{ ...r }])}
+                    className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-[13px] font-medium tap-scale active:bg-secondary"
+                  >
+                    {r.name}
+                    <span className="text-muted-foreground">{r.calories}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="relative">
             <Textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  analyzeText()
+                }
+              }}
               placeholder='e.g. "100g chicken breast, 250g white rice, 1 tbsp olive oil and 2 eggs"'
-              className="min-h-[110px] pr-14"
+              className="min-h-[104px] pr-14"
             />
             <button
               onClick={() => (speech.listening ? speech.stop() : speech.start())}
@@ -238,16 +251,14 @@ export function SmartAdd() {
           </div>
           {!speech.supported && (
             <p className="px-1 text-xs text-muted-foreground">
-              Live voice isn't available in this browser. On iPhone, tap the box and use your keyboard's 🎤 dictation key — it works the same.
+              Live voice isn't available here. On iPhone, tap the box and use your keyboard's 🎤 dictation key — same result.
             </p>
           )}
           <Button className="w-full" onClick={analyzeText} disabled={loading || !text.trim()}>
             {loading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
             Analyze
           </Button>
-          <p className="px-1 text-xs text-muted-foreground">
-            Free & instant — matched against the food database. No AI charges.
-          </p>
+          <p className="px-1 text-xs text-muted-foreground">Free &amp; instant — matched against the food database. No AI charges.</p>
         </div>
       )}
 
@@ -264,10 +275,10 @@ export function SmartAdd() {
               ) : (
                 <div className="rounded-2xl border border-border/70 bg-secondary/40 p-3.5">
                   <p className="text-xs text-muted-foreground">{ai.reason}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">Use the free manual route — your photo is saved either way:</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Use the free route — your photo is saved either way:</p>
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <Button variant="secondary" size="sm" onClick={copyPrompt}><Copy className="size-4" /> Copy AI prompt</Button>
-                    <Button variant="secondary" size="sm" onClick={() => append([blankItem()])}><Plus className="size-4" /> Enter manually</Button>
+                    <Button variant="secondary" size="sm" onClick={() => append([blankFoodItem()])}><Plus className="size-4" /> Enter manually</Button>
                   </div>
                 </div>
               )}
@@ -296,50 +307,10 @@ export function SmartAdd() {
         </div>
       )}
 
-      {/* Review */}
       {items.length > 0 && (
         <div className="mt-6">
-          <div className="mb-2 flex items-center justify-between px-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Review</span>
-            <button onClick={() => append([blankItem()])} className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
-              <Plus className="size-4" /> Add
-            </button>
-          </div>
-
-          <div className="space-y-2">
-            {items.map((it, i) => (
-              <div key={i} className="rounded-2xl border border-border/70 bg-card p-3">
-                <div className="mb-2 flex items-center gap-2">
-                  <Input value={it.name} onChange={(e) => patch(i, { name: e.target.value })} placeholder="Food name" className="h-10 flex-1" />
-                  <button onClick={() => removeItem(i)} className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground active:bg-secondary">
-                    <X className="size-4" />
-                  </button>
-                </div>
-                <div className="mb-2 flex items-center gap-2">
-                  <Input value={it.quantity} onChange={(e) => patch(i, { quantity: Number(e.target.value) || 0 })} inputMode="decimal" className="h-9 w-16 text-center" />
-                  <Input value={it.unit} onChange={(e) => patch(i, { unit: e.target.value })} className="h-9 w-20 text-center" />
-                  <Badge variant="outline" className="ml-auto">
-                    {sourceLabel[it.source]}
-                    {it.confidence != null ? ` · ${Math.round(it.confidence * 100)}%` : ''}
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  <MacroInput label="kcal" value={it.calories} onChange={(n) => patch(i, { calories: n })} />
-                  <MacroInput label="P" value={it.protein} onChange={(n) => patch(i, { protein: n })} />
-                  <MacroInput label="C" value={it.carbs} onChange={(n) => patch(i, { carbs: n })} />
-                  <MacroInput label="F" value={it.fat} onChange={(n) => patch(i, { fat: n })} />
-                </div>
-              </div>
-            ))}
-          </div>
-
+          <MealItemsEditor items={items} onChange={setItems} label="Review" />
           <div className="mt-4 space-y-3 rounded-2xl border border-border/70 bg-secondary/30 p-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Total</span>
-              <span className="font-semibold tabular-nums">
-                {totals.calories} kcal · {totals.protein}P {totals.carbs}C {totals.fat}F
-              </span>
-            </div>
             <div className="space-y-2">
               <Label>Meal name</Label>
               <Input value={mealName} onChange={(e) => setMealName(e.target.value)} placeholder={items[0]?.name || 'Meal'} />
@@ -373,14 +344,5 @@ export function SmartAdd() {
         </AlertDialogContent>
       </AlertDialog>
     </FullScreenPage>
-  )
-}
-
-function MacroInput({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
-  return (
-    <div>
-      <label className="mb-1 block text-center text-[10px] font-medium uppercase text-muted-foreground">{label}</label>
-      <Input value={value} onChange={(e) => onChange(Number(e.target.value) || 0)} inputMode="numeric" className="h-9 px-1 text-center text-sm" />
-    </div>
   )
 }

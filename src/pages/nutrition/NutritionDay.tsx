@@ -7,6 +7,7 @@ import {
   UtensilsCrossed,
   Droplet,
   History,
+  Trash2,
 } from 'lucide-react'
 import { TabPage } from '@/components/layout/TabPage'
 import { Card, CardContent } from '@/components/ui/card'
@@ -15,6 +16,7 @@ import { Progress } from '@/components/ui/progress'
 import { MetricRing } from '@/components/shared/MetricRing'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { CoachCard } from '@/components/shared/CoachCard'
+import { toast } from '@/components/ui/sonner'
 import { useNutrition } from '@/hooks/useNutrition'
 import { useSettings } from '@/hooks/useSettings'
 import { useCollection } from '@/data/store'
@@ -26,7 +28,7 @@ export function NutritionDay() {
   const navigate = useNavigate()
   const { settings } = useSettings()
   const [date, setDate] = useState(todayKey())
-  const { meals, totals, water, addWater } = useNutrition(date)
+  const { meals, totals, water, addWater, removeMeal, saveMeal } = useNutrition(date)
   const adjustments = useCollection(adjustmentsStore)
   const recentAdjustment = [...adjustments]
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -123,35 +125,58 @@ export function NutritionDay() {
       {meals.length === 0 ? (
         <EmptyState
           icon={UtensilsCrossed}
-          title="No meals logged"
-          description="Add what you ate — with a photo if you like."
-          action={<Button onClick={() => navigate(`/nutrition/add?date=${date}`)}><Plus className="size-4" /> Add meal</Button>}
+          title={isToday(date) ? 'Nothing logged yet' : 'No meals this day'}
+          description={
+            isToday(date)
+              ? `You've got ${calRemaining} kcal to work with today. Log a meal by typing, speaking, or snapping a photo.`
+              : 'Nothing was logged on this day.'
+          }
+          action={
+            isToday(date) ? (
+              <Button onClick={() => navigate(`/nutrition/add?date=${date}`)}>
+                <Plus className="size-4" /> Add food
+              </Button>
+            ) : undefined
+          }
         />
       ) : (
         <div className="space-y-2">
           {meals.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => navigate(`/nutrition/meal/${m.id}`)}
-              className="flex w-full items-center gap-3 rounded-2xl border border-border/70 bg-card p-3 text-left active:bg-secondary/50"
-            >
-              {m.photo ? (
-                <img src={m.photo} alt="" className="size-14 shrink-0 rounded-xl object-cover" />
-              ) : (
-                <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                  <UtensilsCrossed className="size-5 text-muted-foreground" />
+            <div key={m.id} className="flex items-center gap-2 rounded-2xl border border-border/70 bg-card p-3">
+              <button onClick={() => navigate(`/nutrition/meal/${m.id}`)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                {m.photo ? (
+                  <img src={m.photo} alt="" className="size-14 shrink-0 rounded-xl object-cover" />
+                ) : (
+                  <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-secondary">
+                    <UtensilsCrossed className="size-5 text-muted-foreground" />
+                  </span>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{m.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {Math.round(m.calories)} kcal · {formatGrams(m.protein)}P · {formatGrams(m.carbs)}C · {formatGrams(m.fat)}F
+                  </span>
+                  {m.items && m.items.length > 0 && (
+                    <span className="block truncate text-[11px] text-muted-foreground/80">
+                      {m.items.length} food{m.items.length > 1 ? 's' : ''}{m.time ? ` · ${m.time}` : ''}
+                    </span>
+                  )}
                 </span>
-              )}
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-medium">{m.name}</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {Math.round(m.calories)} kcal · {formatGrams(m.protein)}P · {formatGrams(m.carbs)}C · {formatGrams(m.fat)}F
-                </span>
-              </span>
-            </button>
+              </button>
+              <button
+                onClick={() => {
+                  removeMeal(m.id)
+                  toast('Meal deleted', { action: { label: 'Undo', onClick: () => saveMeal(m) } })
+                }}
+                className="flex size-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground active:bg-secondary"
+                aria-label="Delete meal"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
           ))}
           <Button variant="outline" className="w-full" onClick={() => navigate(`/nutrition/add?date=${date}`)}>
-            <Plus className="size-4" /> Add meal
+            <Plus className="size-4" /> Add food
           </Button>
         </div>
       )}

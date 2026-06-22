@@ -8,6 +8,8 @@ import {
   Play,
   Check,
   CheckCircle2,
+  LineChart,
+  ChevronRight,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { TabPage } from '@/components/layout/TabPage'
@@ -148,6 +150,20 @@ export function Dashboard() {
           <Progress value={todayTasks.length ? clamp((doneTasks / todayTasks.length) * 100, 0, 100) : 0} indicatorClassName="bg-success" />
         </CardContent>
       </Card>
+
+      <button
+        onClick={() => navigate('/progress')}
+        className="flex w-full items-center gap-3 rounded-3xl border border-border/80 bg-card p-4 text-left active:bg-secondary/50"
+      >
+        <span className="flex size-10 items-center justify-center rounded-2xl bg-secondary">
+          <LineChart className="size-5" />
+        </span>
+        <span className="flex-1">
+          <span className="block text-sm font-semibold">Weekly progress</span>
+          <span className="block text-xs text-muted-foreground">Weight trend, calories & coach adjustments</span>
+        </span>
+        <ChevronRight className="size-4 text-muted-foreground" />
+      </button>
     </TabPage>
   )
 }

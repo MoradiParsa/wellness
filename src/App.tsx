@@ -10,6 +10,7 @@ import { maybeWeeklyAdjust } from '@/coach/nutritionEngine'
 
 import { Dashboard } from '@/pages/Dashboard'
 import { Analytics } from '@/pages/Analytics'
+import { Progress } from '@/pages/Progress'
 import { Onboarding } from '@/pages/onboarding/Onboarding'
 import { Settings } from '@/pages/settings/Settings'
 import { MoreMenuPage } from '@/pages/settings/MoreMenuPage'
@@ -104,6 +105,7 @@ export function App() {
           <Route path="/weight/history" element={<WeightHistory />} />
 
           <Route path="/tasks" element={<TaskList />} />
+          <Route path="/progress" element={<Progress />} />
 
           <Route path="/more" element={<MoreMenuPage />} />
           <Route path="/settings" element={<Settings />} />

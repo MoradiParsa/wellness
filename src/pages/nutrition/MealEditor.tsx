@@ -1,9 +1,7 @@
-import { useState, forwardRef, type InputHTMLAttributes } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import { useState } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
-import { Sparkles, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
+import { format } from 'date-fns'
 import { FullScreenPage } from '@/components/layout/FullScreenPage'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { PhotoPicker } from '@/components/shared/PhotoPicker'
 import { SegmentedControl } from '@/components/shared/SegmentedControl'
+import { MealItemsEditor } from '@/components/nutrition/MealItemsEditor'
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -24,22 +23,10 @@ import {
 } from '@/components/ui/alert-dialog'
 import { toast } from '@/components/ui/sonner'
 import { useNutrition } from '@/hooks/useNutrition'
+import { sumItems } from '@/services/nutrition'
 import { MEAL_TYPES } from '@/lib/constants'
 import { todayKey } from '@/lib/date'
-import { format } from 'date-fns'
-import type { MealType } from '@/types'
-
-const schema = z.object({
-  name: z.string().min(1, 'Give this meal a name'),
-  calories: z.coerce.number().min(0),
-  protein: z.coerce.number().min(0),
-  carbs: z.coerce.number().min(0),
-  fat: z.coerce.number().min(0),
-  fiber: z.coerce.number().min(0),
-  time: z.string().optional(),
-  notes: z.string().optional(),
-})
-type FormValues = z.input<typeof schema>
+import type { MealItem, MealType } from '@/types'
 
 export function MealEditor() {
   const { id } = useParams()
@@ -49,41 +36,44 @@ export function MealEditor() {
 
   const existing = id ? getMeal(id) : undefined
   const date = existing?.date ?? params.get('date') ?? todayKey()
+  const itemized = existing?.items != null
 
-  const [photo, setPhoto] = useState<string | undefined>(existing?.photo)
+  const [name, setName] = useState(existing?.name ?? '')
   const [mealType, setMealType] = useState<MealType>(existing?.mealType ?? 'breakfast')
+  const [time, setTime] = useState(existing?.time ?? format(new Date(), 'HH:mm'))
+  const [notes, setNotes] = useState(existing?.notes ?? '')
+  const [photo, setPhoto] = useState<string | undefined>(existing?.photo)
+  const [items, setItems] = useState<MealItem[]>(existing?.items ?? [])
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      name: existing?.name ?? '',
-      calories: existing?.calories ?? 0,
-      protein: existing?.protein ?? 0,
-      carbs: existing?.carbs ?? 0,
-      fat: existing?.fat ?? 0,
-      fiber: existing?.fiber ?? 0,
-      time: existing?.time ?? format(new Date(), 'HH:mm'),
-      notes: existing?.notes ?? '',
-    },
-  })
+  // Manual macros (used when the meal isn't itemized)
+  const [calories, setCalories] = useState(existing?.calories ?? 0)
+  const [protein, setProtein] = useState(existing?.protein ?? 0)
+  const [carbs, setCarbs] = useState(existing?.carbs ?? 0)
+  const [fat, setFat] = useState(existing?.fat ?? 0)
+  const [fiber, setFiber] = useState(existing?.fiber ?? 0)
 
-  const onSubmit = (v: FormValues) => {
+  const totals = itemized
+    ? sumItems(items)
+    : { calories, protein, carbs, fat, fiber }
+
+  const onSave = () => {
+    if (!name.trim()) {
+      toast.error('Give this meal a name.')
+      return
+    }
     const data = {
       date,
-      name: String(v.name).trim(),
-      calories: Number(v.calories),
-      protein: Number(v.protein),
-      carbs: Number(v.carbs),
-      fat: Number(v.fat),
-      fiber: Number(v.fiber),
-      time: v.time || undefined,
-      notes: v.notes?.trim() || undefined,
+      name: name.trim(),
+      calories: totals.calories,
+      protein: totals.protein,
+      carbs: totals.carbs,
+      fat: totals.fat,
+      fiber: totals.fiber,
+      time: time || undefined,
+      notes: notes.trim() || undefined,
       photo,
       mealType,
+      items: itemized ? items : undefined,
     }
     if (existing) saveMeal({ ...existing, ...data })
     else addMeal(data)
@@ -125,25 +115,17 @@ export function MealEditor() {
         ) : undefined
       }
       footer={
-        <Button size="lg" className="w-full" onClick={handleSubmit(onSubmit)}>
+        <Button size="lg" className="w-full" onClick={onSave}>
           {existing ? 'Save changes' : 'Log meal'}
         </Button>
       }
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+      <div className="space-y-5">
         <PhotoPicker value={photo} onChange={setPhoto} />
-
-        <div className="flex items-start gap-2.5 rounded-2xl border border-border/70 bg-secondary/40 p-3.5">
-          <Sparkles className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-          <p className="text-xs text-muted-foreground">
-            AI food analysis coming soon. For now, enter nutrition manually.
-          </p>
-        </div>
 
         <div className="space-y-2">
           <Label htmlFor="name">Meal name</Label>
-          <Input id="name" placeholder="e.g. Chicken & rice bowl" {...register('name')} />
-          {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+          <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Chicken & rice bowl" />
         </div>
 
         <div className="space-y-2">
@@ -157,33 +139,49 @@ export function MealEditor() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField label="Calories (kcal)" {...register('calories')} />
-          <NumberField label="Protein (g)" {...register('protein')} />
-          <NumberField label="Carbs (g)" {...register('carbs')} />
-          <NumberField label="Fat (g)" {...register('fat')} />
-          <NumberField label="Fiber (g)" {...register('fiber')} />
+        {itemized ? (
+          <MealItemsEditor items={items} onChange={setItems} />
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Calories (kcal)" value={calories} onChange={setCalories} />
+            <Field label="Protein (g)" value={protein} onChange={setProtein} />
+            <Field label="Carbs (g)" value={carbs} onChange={setCarbs} />
+            <Field label="Fat (g)" value={fat} onChange={setFat} />
+            <Field label="Fiber (g)" value={fiber} onChange={setFiber} />
+            <div className="space-y-2">
+              <Label htmlFor="time">Time</Label>
+              <Input id="time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+            </div>
+          </div>
+        )}
+
+        {itemized && (
           <div className="space-y-2">
             <Label htmlFor="time">Time</Label>
-            <Input id="time" type="time" {...register('time')} />
+            <Input id="time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
           </div>
-        </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="notes">Notes</Label>
-          <Textarea id="notes" placeholder="Restaurant, recipe, how it felt…" {...register('notes')} />
+          <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Restaurant, recipe, how it felt…" />
         </div>
-      </form>
+      </div>
     </FullScreenPage>
   )
 }
 
-const NumberField = forwardRef<HTMLInputElement, { label: string } & InputHTMLAttributes<HTMLInputElement>>(
-  ({ label, ...props }, ref) => (
+function Field({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
+  return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      <Input type="number" inputMode="decimal" step="any" ref={ref} {...props} />
+      <Input
+        type="number"
+        inputMode="decimal"
+        step="any"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value) || 0)}
+      />
     </div>
-  ),
-)
-NumberField.displayName = 'NumberField'
+  )
+}

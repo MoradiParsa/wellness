@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   ListChecks,
   BarChart3,
+  LineChart,
   SlidersHorizontal,
   Dumbbell,
   ClipboardList,
@@ -20,6 +21,7 @@ export function MoreMenuPage() {
   return (
     <TabPage title="More" subtitle={settings.name ? `Hi, ${settings.name}` : 'Everything else'}>
       <ListGroup>
+        <ListRow icon={LineChart} label="Weekly Progress" sublabel="Weight, calories & adjustments" chevron onClick={() => navigate('/progress')} />
         <ListRow icon={ListChecks} label="Tasks & Habits" chevron onClick={() => navigate('/tasks')} />
         <ListRow icon={BarChart3} label="Analytics" chevron onClick={() => navigate('/analytics')} />
         <ListRow icon={SlidersHorizontal} label="Settings" chevron onClick={() => navigate('/settings')} />
