@@ -203,31 +203,42 @@ export interface BodyComposition {
   muscleMassKg: number
   waterMassKg: number
   boneMassKg: number
+  /** weight minus fat (everything that isn't fat) */
+  leanMassKg: number
+  /** weight minus fat, muscle, water and bone */
   otherMassKg: number
   fatPercent: number
   musclePercent: number
   waterPercent: number
+  bonePercent: number
 }
 
 /**
  * Calculate body composition breakdown from a weight entry with body metrics.
- * Percentages may overlap (smart scales estimate differently), so totals don't always equal 100%.
+ * `bonePercent` is a fraction (0.084 = 8.4%). Percentages may overlap (smart
+ * scales estimate differently), so totals don't always equal 100%.
  */
-export function calculateBodyComposition(entry: WeightEntry): BodyComposition {
+export function calculateBodyComposition(
+  entry: WeightEntry,
+  bonePercent: number = BONE_PERCENTAGE,
+): BodyComposition {
   const fat = entry.weight * (entry.bodyFat ?? 0) / 100
   const muscle = entry.weight * (entry.muscle ?? 0) / 100
   const water = entry.weight * (entry.water ?? 0) / 100
-  const bone = entry.weight * BONE_PERCENTAGE
+  const bone = entry.weight * bonePercent
+  const lean = Math.max(0, entry.weight - fat)
   const other = Math.max(0, entry.weight - fat - muscle - water - bone)
   return {
     fatMassKg: fat,
     muscleMassKg: muscle,
     waterMassKg: water,
     boneMassKg: bone,
+    leanMassKg: lean,
     otherMassKg: other,
     fatPercent: entry.bodyFat ?? 0,
     musclePercent: entry.muscle ?? 0,
     waterPercent: entry.water ?? 0,
+    bonePercent: bonePercent * 100,
   }
 }
 

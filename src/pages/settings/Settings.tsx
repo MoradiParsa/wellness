@@ -220,6 +220,13 @@ export function Settings() {
           <Field label="Training days / week">
             <SegmentedControl layoutId="set-days" size="sm" value={String(settings.profile.trainingDaysPerWeek)} onChange={(v) => setProfile({ trainingDaysPerWeek: Number(v) })} options={[2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) }))} />
           </Field>
+          <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-4">
+            <div>
+              <Label className="shrink-0">Bone %</Label>
+              <p className="text-[11px] text-muted-foreground">Used for body composition. Default 8.4%.</p>
+            </div>
+            <div className="w-28"><NumberBox value={settings.boneBodyPercent} decimals={1} suffix="%" onCommit={(n) => update({ boneBodyPercent: n || 8.4 })} /></div>
+          </div>
         </CardContent>
       </Card>
 

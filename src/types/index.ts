@@ -86,6 +86,9 @@ export interface Settings {
   // ---- Customizable navigation ----
   /** Bottom nav tabs to show (always includes 'dashboard' and 'more' if needed). */
   bottomBarVisibleKeys: string[]
+
+  /** Bone as a percentage of body weight (constant; default 8.4%). */
+  boneBodyPercent: number
 }
 
 export interface CalorieAdjustment {

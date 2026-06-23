@@ -13,7 +13,7 @@ export const ALL_TABS: TabItem[] = [
   { key: 'dashboard', label: 'Home', to: '/', icon: LayoutGrid },
   { key: 'workout', label: 'Workout', to: '/workout', icon: Dumbbell },
   { key: 'nutrition', label: 'Nutrition', to: '/nutrition', icon: UtensilsCrossed },
-  { key: 'weight', label: 'Weight', to: '/weight', icon: Scale },
+  { key: 'weight', label: 'Body Metrics', to: '/weight', icon: Scale },
   { key: 'tasks', label: 'Tasks', to: '/tasks', icon: ListChecks },
   { key: 'analytics', label: 'Analytics', to: '/analytics', icon: BarChart3 },
   { key: 'progress', label: 'Progress', to: '/progress', icon: LineChart },

@@ -38,11 +38,12 @@ export function bulkCutCoach(
   const prevLatestIdx = entries.length >= 2 ? entries.length - 2 : -1
   const prev = prevLatestIdx >= 0 ? entries[prevLatestIdx] : null
 
+  const boneFrac = (settings.boneBodyPercent ?? 8.4) / 100
   const hasBodyComp = latest && (latest.bodyFat || latest.muscle || latest.water)
   let bodyCompMsg = ''
   if (hasBodyComp && prev && (prev.bodyFat || prev.muscle)) {
-    const latestComp = calculateBodyComposition(latest)
-    const prevComp = calculateBodyComposition(prev)
+    const latestComp = calculateBodyComposition(latest, boneFrac)
+    const prevComp = calculateBodyComposition(prev, boneFrac)
     const fatDelta = latestComp.fatMassKg - prevComp.fatMassKg
     const muscleDelta = latestComp.muscleMassKg - prevComp.muscleMassKg
 
