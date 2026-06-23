@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, lazy, Suspense } from 'react'
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { BottomNav } from '@/components/layout/BottomNav'
@@ -7,11 +7,16 @@ import { Toaster, toast } from '@/components/ui/sonner'
 import { settingsStore } from '@/data/collections'
 import { useSettings } from '@/hooks/useSettings'
 import { maybeWeeklyAdjust } from '@/coach/nutritionEngine'
+import { maybeGenerateWeeklyReport } from '@/coach/weeklyReport'
 
 import { Dashboard } from '@/pages/Dashboard'
 import { Analytics } from '@/pages/Analytics'
 import { Progress } from '@/pages/Progress'
 import { HealthDay } from '@/pages/health/HealthDay'
+// Photo-heavy page is lazy-loaded so its images/IndexedDB code don't weigh down the app shell.
+const ProgressPhotos = lazy(() =>
+  import('@/pages/health/ProgressPhotos').then((m) => ({ default: m.ProgressPhotos })),
+)
 import { Onboarding } from '@/pages/onboarding/Onboarding'
 import { Settings } from '@/pages/settings/Settings'
 import { MoreMenuPage } from '@/pages/settings/MoreMenuPage'
@@ -64,13 +69,20 @@ export function App() {
     }
   }, [location.pathname])
 
-  // Weekly smart-calorie auto-adjustment (self-gates to once per 7 days).
+  // Weekly smart-calorie auto-adjustment + weekly report (self-gate to once/week).
   useEffect(() => {
     if (!settingsStore.get().onboardingComplete) return
     const adj = maybeWeeklyAdjust()
     if (adj) {
       toast('Calories adjusted', {
         description: adj.reason,
+        duration: 8000,
+      })
+    }
+    const report = maybeGenerateWeeklyReport()
+    if (report) {
+      toast('Weekly report ready', {
+        description: report.assessment,
         duration: 8000,
       })
     }
@@ -110,6 +122,7 @@ export function App() {
           <Route path="/tasks" element={<TaskList />} />
           <Route path="/progress" element={<Progress />} />
           <Route path="/health" element={<HealthDay />} />
+          <Route path="/photos" element={<Suspense fallback={null}><ProgressPhotos /></Suspense>} />
 
           <Route path="/more" element={<MoreMenuPage />} />
           <Route path="/settings" element={<Settings />} />

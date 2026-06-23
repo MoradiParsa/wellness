@@ -170,6 +170,41 @@ export interface WorkoutSession {
   createdAt: string
 }
 
+/** One exercise inside the live (in-progress) session draft. */
+export interface ActiveDraftEntry {
+  exerciseId: string
+  /** the program target this exercise was started from, if any */
+  target?: ProgramExercise
+  sets: SetLog[]
+  notes?: string
+  /** true when added mid-workout (not part of the program day) */
+  extra?: boolean
+}
+
+/**
+ * The single in-progress workout, persisted to LocalStorage so it survives
+ * navigation, lock-screen, and refresh. The rest timer is stored as an absolute
+ * end timestamp so it "keeps running" while the page is away.
+ */
+export interface ActiveSessionDraft {
+  active: boolean
+  /** epoch ms when the session started */
+  startedAt: number
+  programId?: string
+  programDayId?: string
+  name: string
+  entries: ActiveDraftEntry[]
+  /** index of the exercise currently being logged */
+  currentIndex: number
+  sessionNotes: string
+  /** epoch ms the current rest ends, or null when not resting */
+  restEndsAt: number | null
+  /** total length of the current rest, for display */
+  restTotalSec: number | null
+  /** the in-progress rest follows the final set of an exercise → auto-advance on expiry */
+  advanceAfterRest: boolean
+}
+
 /** A single resolved food line inside a meal (from parsing / lookup / AI). */
 export interface MealItem {
   name: string
@@ -261,6 +296,41 @@ export interface SavedFood {
   id: string
   createdAt: string
   item: MealItem
+}
+
+/** An automatically-generated weekly summary (id = week-start date key). */
+export interface WeeklyReport {
+  id: string
+  weekStart: string
+  /** kg, this week's avg minus last week's avg */
+  weightDeltaKg: number | null
+  bodyFatDelta: number | null
+  muscleDelta: number | null
+  avgCalories: number | null
+  avgProtein: number | null
+  workoutsCompleted: number
+  workoutsPlanned: number
+  avgSleep: number | null
+  avgSteps: number | null
+  avgRecovery: number | null
+  assessment: string
+  createdAt: string
+}
+
+/** A dated progress photo (stored in IndexedDB; metadata snapshot included). */
+export interface ProgressPhoto {
+  id: string
+  date: string
+  pose: 'front' | 'side' | 'back' | 'custom'
+  /** base64 data URL — kept in IndexedDB, not LocalStorage */
+  dataUrl: string
+  weightKg?: number
+  bodyFat?: number
+  muscle?: number
+  water?: number
+  calories?: number
+  phase?: Phase
+  createdAt: string
 }
 
 /** A user-verified food (barcode, label scan, or confirmed branded product). */

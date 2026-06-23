@@ -11,6 +11,7 @@ import {
   Sparkles,
   FileSpreadsheet,
   HeartPulse,
+  Camera,
 } from 'lucide-react'
 import { TabPage } from '@/components/layout/TabPage'
 import { ListGroup, ListRow } from '@/components/shared/List'
@@ -25,6 +26,7 @@ export function MoreMenuPage() {
       <ListGroup>
         <ListRow icon={LineChart} label="Weekly Progress" sublabel="Weight, calories & adjustments" chevron onClick={() => navigate('/progress')} />
         <ListRow icon={HeartPulse} label="Health Import" sublabel="Steps, sleep, heart rate & recovery" chevron onClick={() => navigate('/health')} />
+        <ListRow icon={Camera} label="Progress Photos" sublabel="Timeline & comparison" chevron onClick={() => navigate('/photos')} />
         <ListRow icon={ListChecks} label="Tasks & Habits" chevron onClick={() => navigate('/tasks')} />
         <ListRow icon={BarChart3} label="Analytics" chevron onClick={() => navigate('/analytics')} />
         <ListRow icon={SlidersHorizontal} label="Settings" chevron onClick={() => navigate('/settings')} />

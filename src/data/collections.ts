@@ -14,6 +14,8 @@ import type {
   SavedFood,
   SavedMeal,
   VerifiedFood,
+  WeeklyReport,
+  ActiveSessionDraft,
 } from '@/types'
 
 // Central registry of every persisted collection. To migrate to a backend
@@ -32,3 +34,23 @@ export const healthStore = createCollection<HealthEntry>('health')
 export const savedFoodsStore = createCollection<SavedFood>('savedFoods')
 export const savedMealsStore = createCollection<SavedMeal>('savedMeals')
 export const verifiedFoodsStore = createCollection<VerifiedFood>('verifiedFoods')
+export const weeklyReportsStore = createCollection<WeeklyReport>('weeklyReports')
+
+/** A blank, inactive live-session draft. */
+export const EMPTY_ACTIVE_SESSION: ActiveSessionDraft = {
+  active: false,
+  startedAt: 0,
+  name: '',
+  entries: [],
+  currentIndex: 0,
+  sessionNotes: '',
+  restEndsAt: null,
+  restTotalSec: null,
+  advanceAfterRest: false,
+}
+
+// The one in-progress workout (persisted so it survives navigation / refresh).
+export const activeSessionStore = createSingleton<ActiveSessionDraft>(
+  'activeSession',
+  EMPTY_ACTIVE_SESSION,
+)

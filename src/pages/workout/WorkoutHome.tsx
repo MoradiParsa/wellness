@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Dumbbell, Pencil, History, Library, Play, ChevronRight, ClipboardList, FileSpreadsheet } from 'lucide-react'
+import { Dumbbell, Pencil, History, Library, Play, ChevronRight, ClipboardList, FileSpreadsheet, Timer } from 'lucide-react'
 import { TabPage } from '@/components/layout/TabPage'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { usePrograms } from '@/hooks/usePrograms'
 import { useWorkouts } from '@/hooks/useWorkouts'
+import { useActiveWorkout } from '@/hooks/useActiveWorkout'
 import { exerciseName } from '@/hooks/useExercises'
 import { formatPretty } from '@/lib/date'
 
@@ -14,10 +15,31 @@ export function WorkoutHome() {
   const navigate = useNavigate()
   const { activeProgram } = usePrograms()
   const { workouts } = useWorkouts()
+  const session = useActiveWorkout()
+
+  const resumeBanner = session.active && session.entries.length > 0 && (
+    <button
+      onClick={() => navigate(session.programDayId ? `/workout/session/${session.programDayId}` : '/workout/session')}
+      className="mb-5 flex w-full items-center gap-3 rounded-3xl border border-foreground/30 bg-card p-4 text-left active:bg-secondary/50"
+    >
+      <span className="flex size-11 items-center justify-center rounded-2xl bg-foreground text-background">
+        <Timer className="size-5" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">Workout in progress</span>
+        <span className="block truncate text-xs text-muted-foreground">
+          {session.name} · {session.entries.filter((e) => e.sets.every((s) => s.completed) && e.sets.length > 0).length}/
+          {session.entries.length} exercises done
+        </span>
+      </span>
+      <Play className="size-4 shrink-0 text-muted-foreground" />
+    </button>
+  )
 
   if (!activeProgram) {
     return (
       <TabPage title="Workout">
+        {resumeBanner}
         <EmptyState
           icon={ClipboardList}
           title="No program yet"
@@ -59,6 +81,7 @@ export function WorkoutHome() {
         </Button>
       }
     >
+      {resumeBanner}
       {suggested && (
         <Card className="mb-5 overflow-hidden">
           <CardContent className="p-5">

@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   LineChart,
   ChevronRight,
+  Sparkles,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { TabPage } from '@/components/layout/TabPage'
@@ -24,10 +25,13 @@ import { useNutrition } from '@/hooks/useNutrition'
 import { useWorkouts } from '@/hooks/useWorkouts'
 import { usePrograms } from '@/hooks/usePrograms'
 import { useTasks } from '@/hooks/useTasks'
+import { useHealth } from '@/hooks/useHealth'
 import { computeWeightTrend, currentStreak } from '@/coach/metrics'
+import { currentRecovery, type Readiness } from '@/coach/recovery'
 import { buildDailyBrief } from '@/coach/dailyCoach'
 import { todayKey, formatLong } from '@/lib/date'
 import { formatWeight, clamp } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -45,7 +49,10 @@ export function Dashboard() {
   const { workouts } = useWorkouts()
   const { activeProgram } = usePrograms()
   const { tasks } = useTasks()
+  const { getByDate } = useHealth()
 
+  const todayHealth = getByDate(today)
+  const recovery = currentRecovery()
   const trend = computeWeightTrend(chronological, settings.goalWeight)
   const streak = currentStreak(workouts.map((w) => w.date))
   const trainedToday = workouts.some((w) => w.date === today)
@@ -64,6 +71,28 @@ export function Dashboard() {
 
   return (
     <TabPage title={brief.name ? `${greeting()}, ${brief.name}` : greeting()} subtitle={formatLong(today)}>
+      {/* Today's Snapshot — the first thing you see */}
+      <div className="mb-5 rounded-3xl border border-border/80 bg-card p-4">
+        <p className="mb-3 flex items-center gap-1.5 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <Sparkles className="size-3.5" /> Today's snapshot
+        </p>
+        <div className="grid grid-cols-4 gap-2">
+          <Tile label="Weight" value={latest ? formatWeight(latest.weight, settings) : '—'} />
+          <Tile label="Recovery" value={recovery.available ? String(recovery.score) : '—'} tone={recovery.available ? readinessTone(recovery.readiness) : undefined} />
+          <Tile label="Cal left" value={Math.max(0, calLeft)} />
+          <Tile label="Protein" value={`${proteinLeft}g`} />
+          <Tile label="Workout" value={trainedToday ? 'Done' : suggestedDay ? 'Ready' : '—'} tone={trainedToday ? 'text-success' : undefined} />
+          <Tile label="Steps" value={todayHealth?.steps != null ? todayHealth.steps.toLocaleString() : '—'} />
+          <Tile label="Sleep" value={todayHealth?.sleepHours != null ? `${todayHealth.sleepHours}h` : '—'} />
+          <Tile label="Phase" value={settings.phase} className="capitalize" />
+        </div>
+        {recovery.available && (
+          <p className="mt-3 rounded-2xl bg-secondary/40 px-3 py-2.5 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">{recovery.readiness} readiness.</span> {recovery.recommendation}
+          </p>
+        )}
+      </div>
+
       <div className="mb-5 grid grid-cols-4 gap-2">
         <QuickAdd icon={UtensilsCrossed} label="Meal" onClick={() => navigate(`/nutrition/add?date=${today}`)} />
         <QuickAdd icon={Scale} label="Weight" onClick={() => navigate('/weight/new')} />
@@ -165,6 +194,19 @@ export function Dashboard() {
         <ChevronRight className="size-4 text-muted-foreground" />
       </button>
     </TabPage>
+  )
+}
+
+function readinessTone(r: Readiness): string {
+  return r === 'High' ? 'text-success' : r === 'Moderate' ? 'text-warning' : 'text-destructive'
+}
+
+function Tile({ label, value, sub, tone, className }: { label: string; value: string | number; sub?: string; tone?: string; className?: string }) {
+  return (
+    <div className="rounded-2xl bg-secondary/40 p-2.5 text-center">
+      <p className={cn('truncate text-base font-bold leading-tight tabular-nums', tone, className)}>{value}</p>
+      <p className="text-[10px] text-muted-foreground">{label}{sub ? ` ${sub}` : ''}</p>
+    </div>
   )
 }
 

@@ -1,10 +1,12 @@
 import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { subWeeks } from 'date-fns'
-import { BarChart3, Flame, Trophy } from 'lucide-react'
+import { BarChart3, Flame, Trophy, HeartPulse, Camera, ChevronRight } from 'lucide-react'
 import { TabPage } from '@/components/layout/TabPage'
 import { Card, CardContent } from '@/components/ui/card'
 import { StatCard } from '@/components/shared/StatCard'
 import { EmptyState } from '@/components/shared/EmptyState'
+import { RecoveryCard } from '@/components/shared/RecoveryCard'
 import { LineTrend, BarSeries } from '@/components/charts/Charts'
 import { useWorkouts } from '@/hooks/useWorkouts'
 import { useWeight } from '@/hooks/useWeight'
@@ -12,14 +14,19 @@ import { useNutrition } from '@/hooks/useNutrition'
 import { useTasks } from '@/hooks/useTasks'
 import { useSettings } from '@/hooks/useSettings'
 import { exerciseName } from '@/hooks/useExercises'
+import { useCollection } from '@/data/store'
+import { weeklyReportsStore } from '@/data/collections'
 import {
   entryVolume,
   exercisePRs,
   currentStreak,
   countWithinDays,
 } from '@/coach/metrics'
-import { weekStartKey, parseKey, formatMonthDay, daysAgo } from '@/lib/date'
-import { toDisplayWeight, formatWeight } from '@/lib/format'
+import { currentRecovery, recoverySeries } from '@/coach/recovery'
+import { currentWeekReport } from '@/coach/weeklyReport'
+import { weekStartKey, parseKey, formatMonthDay, formatPretty, daysAgo } from '@/lib/date'
+import { toDisplayWeight, formatWeight, formatSignedWeight } from '@/lib/format'
+import type { WeeklyReport } from '@/types'
 
 export function Analytics() {
   const { workouts } = useWorkouts()
@@ -27,6 +34,13 @@ export function Analytics() {
   const { allMeals } = useNutrition()
   const { tasks } = useTasks()
   const { settings } = useSettings()
+  const navigate = useNavigate()
+
+  const recovery = currentRecovery()
+  const recSeries = recoverySeries(14).map((r) => ({ label: formatMonthDay(r.date), value: r.score }))
+  const reports = useCollection(weeklyReportsStore)
+  const sortedReports = [...reports].sort((a, b) => b.weekStart.localeCompare(a.weekStart))
+  const thisWeek = currentWeekReport()
 
   const hasData = workouts.length || chronological.length || allMeals.length || tasks.length
 
@@ -153,6 +167,40 @@ export function Analytics() {
         </Section>
       )}
 
+      <p className="mb-2 mt-6 flex items-center gap-1.5 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <HeartPulse className="size-3.5" /> Recovery
+      </p>
+      <div className="mb-4">
+        <RecoveryCard recovery={recovery} showFactors />
+      </div>
+      {recSeries.length >= 2 && (
+        <Section title="Recovery trend">
+          <LineTrend data={recSeries} color="hsl(var(--success))" suffix="" />
+        </Section>
+      )}
+
+      <p className="mb-2 mt-6 flex items-center gap-1.5 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        <BarChart3 className="size-3.5" /> Weekly reports
+      </p>
+      <WeeklyReportCard report={thisWeek} settings={settings} current />
+      {sortedReports.map((r) => (
+        <WeeklyReportCard key={r.id} report={r} settings={settings} />
+      ))}
+
+      <button
+        onClick={() => navigate('/photos')}
+        className="mb-2 mt-4 flex w-full items-center gap-3 rounded-3xl border border-border/80 bg-card p-4 text-left active:bg-secondary/50"
+      >
+        <span className="flex size-10 items-center justify-center rounded-2xl bg-secondary">
+          <Camera className="size-5" />
+        </span>
+        <span className="flex-1">
+          <span className="block text-sm font-semibold">Progress photos</span>
+          <span className="block text-xs text-muted-foreground">Timeline & side-by-side comparison</span>
+        </span>
+        <ChevronRight className="size-4 text-muted-foreground" />
+      </button>
+
       {prs.length > 0 && (
         <>
           <p className="mb-2 mt-6 flex items-center gap-1.5 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -183,6 +231,48 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <CardContent className="p-4">
         <p className="mb-2 text-sm font-medium text-muted-foreground">{title}</p>
         {children}
+      </CardContent>
+    </Card>
+  )
+}
+
+function WeeklyReportCard({
+  report,
+  settings,
+  current,
+}: {
+  report: WeeklyReport
+  settings: ReturnType<typeof useSettings>['settings']
+  current?: boolean
+}) {
+  const signed = (v: number | null, suffix = '') => (v == null ? '—' : `${v > 0 ? '+' : ''}${v}${suffix}`)
+  const rows: [string, string][] = [
+    ['Weight', report.weightDeltaKg != null ? formatSignedWeight(report.weightDeltaKg, settings) : '—'],
+    ['Body fat', signed(report.bodyFatDelta, '%')],
+    ['Muscle', signed(report.muscleDelta, '%')],
+    ['Calories', report.avgCalories != null ? `${report.avgCalories.toLocaleString()}` : '—'],
+    ['Protein', report.avgProtein != null ? `${report.avgProtein}g` : '—'],
+    ['Workouts', `${report.workoutsCompleted}/${report.workoutsPlanned || '—'}`],
+    ['Sleep', report.avgSleep != null ? `${report.avgSleep} hrs` : '—'],
+    ['Steps', report.avgSteps != null ? report.avgSteps.toLocaleString() : '—'],
+    ['Recovery', report.avgRecovery != null ? `${report.avgRecovery}` : '—'],
+  ]
+  return (
+    <Card className="mb-3">
+      <CardContent className="p-4">
+        <div className="mb-2.5 flex items-center justify-between">
+          <span className="text-sm font-semibold">{current ? 'This week' : `Week of ${formatPretty(report.weekStart)}`}</span>
+          {current && <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">in progress</span>}
+        </div>
+        <div className="grid grid-cols-3 gap-x-3 gap-y-2.5">
+          {rows.map(([k, v]) => (
+            <div key={k}>
+              <p className="text-[11px] text-muted-foreground">{k}</p>
+              <p className="text-sm font-semibold tabular-nums">{v}</p>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 rounded-xl bg-secondary/40 px-3 py-2 text-sm leading-relaxed text-muted-foreground">{report.assessment}</p>
       </CardContent>
     </Card>
   )

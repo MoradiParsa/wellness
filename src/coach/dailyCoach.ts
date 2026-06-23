@@ -2,6 +2,7 @@ import { settingsStore, weightsStore, workoutsStore, programsStore, adjustmentsS
 import { computeWeightTrend, volumeWithinDays } from './metrics'
 import { bulkCutCoach } from './phase'
 import { compositionTrend, bulkOptimizationCoach, healthCoachLine } from './bodyComp'
+import { currentRecovery } from './recovery'
 import { suggestOverload } from './overload'
 import { lastEntryForExercise } from '@/hooks/useWorkouts'
 import { exerciseName } from '@/hooks/useExercises'
@@ -70,6 +71,13 @@ export function buildDailyBrief(): DailyBrief {
   // Append a manual-health-data line (recovery / extra burn) when available.
   const healthLine = healthCoachLine()
   if (healthLine) coachBody += (coachBody ? ' ' : '') + healthLine
+
+  // Surface recovery in the coach line when it's actionable (not High).
+  const rec = currentRecovery()
+  if (rec.available && rec.readiness !== 'High') {
+    coachBody += (coachBody ? ' ' : '') + `Recovery ${rec.score}/100 — ${rec.recommendation}`
+    if (rec.readiness === 'Low' && tone === 'positive') tone = 'neutral'
+  }
 
   // Workout tip from progressive overload on the first lift of today's session.
   if (!trainedToday && suggestedDay && suggestedDay.exercises.length) {

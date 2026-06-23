@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { Dumbbell, Trash2, Trophy } from 'lucide-react'
+import { Dumbbell, Trash2, Trophy, Sparkles, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { FullScreenPage } from '@/components/layout/FullScreenPage'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { Card, CardContent } from '@/components/ui/card'
@@ -20,16 +20,20 @@ import {
 import { toast } from '@/components/ui/sonner'
 import { useExercises } from '@/hooks/useExercises'
 import { useWorkouts, allEntriesForExercise } from '@/hooks/useWorkouts'
+import { usePrograms } from '@/hooks/usePrograms'
 import { useSettings } from '@/hooks/useSettings'
 import { strengthSeries, exercisePRs, totalVolume, epley1RM, bestSet } from '@/coach/metrics'
+import { suggestOverloadTrend } from '@/coach/overload'
 import { toDisplayWeight, formatWeight } from '@/lib/format'
 import { formatMonthDay, formatPretty } from '@/lib/date'
+import { cn } from '@/lib/utils'
 
 export function ExerciseDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { getById, remove } = useExercises()
   const { workouts } = useWorkouts()
+  const { activeProgram } = usePrograms()
   const { settings } = useSettings()
 
   const exercise = id ? getById(id) : undefined
@@ -44,7 +48,12 @@ export function ExerciseDetail() {
   const series = strengthSeries(workouts, exercise.id)
   const pr = exercisePRs(workouts, exercise.id)
   const vol = totalVolume(workouts, exercise.id)
-  const history = allEntriesForExercise(exercise.id).reverse()
+  const chrono = allEntriesForExercise(exercise.id) // oldest → newest
+  const history = [...chrono].reverse()
+  const target = activeProgram?.days.flatMap((d) => d.exercises).find((e) => e.exerciseId === exercise.id)
+  const rec = chrono.length
+    ? suggestOverloadTrend({ exerciseId: exercise.id, settings, target, history: chrono.map((h) => h.entry) })
+    : null
   const chartData = series.map((p) => ({
     label: formatMonthDay(p.date),
     value: Number(toDisplayWeight(p.e1rm, settings.units.weight).toFixed(1)),
@@ -106,6 +115,8 @@ export function ExerciseDetail() {
             <Stat label="Total volume" value={formatWeight(vol, settings, 0)} />
           </div>
 
+          {rec && <RecommendationCard rec={rec} />}
+
           {chartData.length >= 2 && (
             <Card className="mb-4">
               <CardContent className="p-4">
@@ -146,6 +157,29 @@ export function ExerciseDetail() {
         </>
       )}
     </FullScreenPage>
+  )
+}
+
+function RecommendationCard({ rec }: { rec: ReturnType<typeof suggestOverloadTrend> }) {
+  const Icon = rec.action === 'increase' ? TrendingUp : rec.action === 'decrease' ? TrendingDown : Minus
+  const confTone =
+    rec.confidence === 'High' ? 'border-success/40 text-success' : rec.confidence === 'Medium' ? 'border-warning/40 text-warning' : 'border-border text-muted-foreground'
+  return (
+    <Card className="mb-4">
+      <CardContent className="p-4">
+        <div className="mb-1.5 flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <Sparkles className="size-3.5" /> Coach recommendation
+          </span>
+          <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-medium', confTone)}>{rec.confidence} confidence</span>
+        </div>
+        <p className="flex items-start gap-2 text-[15px] font-semibold">
+          <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+          {rec.message}
+        </p>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{rec.reasoning}</p>
+      </CardContent>
+    </Card>
   )
 }
 
