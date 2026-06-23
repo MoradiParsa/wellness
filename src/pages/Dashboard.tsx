@@ -71,6 +71,28 @@ export function Dashboard() {
 
   return (
     <TabPage title={brief.name ? `${greeting()}, ${brief.name}` : greeting()} subtitle={formatLong(today)}>
+      {/* Calorie Recommendation Card — visible even if Nutrition tab is hidden */}
+      {!settings.bottomBarVisibleKeys.includes('nutrition') && (
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            <p className="mb-2 text-sm font-semibold">Recommended today</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-3xl font-bold tabular-nums">{settings.calorieTarget}</p>
+                <p className="text-xs text-muted-foreground">kcal</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold tabular-nums">{settings.proteinTarget}g</p>
+                <p className="text-xs text-muted-foreground">protein</p>
+              </div>
+            </div>
+            <p className="mt-3 rounded-lg bg-secondary/40 p-2 text-xs text-muted-foreground">
+              Phase: <span className="font-semibold capitalize">{settings.phase}</span>
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Today's Snapshot — the first thing you see */}
       <div className="mb-5 rounded-3xl border border-border/80 bg-card p-4">
         <p className="mb-3 flex items-center gap-1.5 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">

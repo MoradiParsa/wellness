@@ -142,4 +142,5 @@ export const DEFAULT_SETTINGS: Settings = {
     usageMonth: '',
     usageCount: 0,
   },
+  bottomBarVisibleKeys: ['dashboard', 'workout', 'nutrition', 'weight', 'more'],
 }

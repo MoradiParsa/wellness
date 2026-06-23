@@ -82,6 +82,10 @@ export interface Settings {
   /** ISO date key of the last weekly auto-adjustment. */
   lastWeeklyAdjust?: string
   ai: AiSettings
+
+  // ---- Customizable navigation ----
+  /** Bottom nav tabs to show (always includes 'dashboard' and 'more' if needed). */
+  bottomBarVisibleKeys: string[]
 }
 
 export interface CalorieAdjustment {

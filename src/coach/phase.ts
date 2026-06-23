@@ -1,6 +1,6 @@
 import type { Settings, WeightEntry, CoachMessage } from '@/types'
 import { toDisplayWeight } from '@/lib/format'
-import { computeWeightTrend } from './metrics'
+import { computeWeightTrend, calculateBodyComposition } from './metrics'
 import { uid } from '@/lib/id'
 
 function rateLabel(weeklyRateKg: number, s: Settings): string {
@@ -32,6 +32,38 @@ export function bulkCutCoach(
   }
 
   const label = rateLabel(rate, settings)
+
+  // Body composition check if available
+  const latest = entries.length > 0 ? entries[entries.length - 1] : null
+  const prevLatestIdx = entries.length >= 2 ? entries.length - 2 : -1
+  const prev = prevLatestIdx >= 0 ? entries[prevLatestIdx] : null
+
+  const hasBodyComp = latest && (latest.bodyFat || latest.muscle || latest.water)
+  let bodyCompMsg = ''
+  if (hasBodyComp && prev && (prev.bodyFat || prev.muscle)) {
+    const latestComp = calculateBodyComposition(latest)
+    const prevComp = calculateBodyComposition(prev)
+    const fatDelta = latestComp.fatMassKg - prevComp.fatMassKg
+    const muscleDelta = latestComp.muscleMassKg - prevComp.muscleMassKg
+
+    if (phase === 'bulk' && Math.abs(rate) > 0.15) {
+      if (fatDelta > muscleDelta * 1.5) {
+        bodyCompMsg = 'Fat mass climbing faster than muscle — slow the bulk slightly.'
+      } else if (latestComp.fatMassKg <= prevComp.fatMassKg && muscleDelta > 0) {
+        bodyCompMsg = 'Great bulk signal: scale weight is rising without fat mass increasing.'
+      } else if (muscleDelta > 0) {
+        bodyCompMsg = 'Muscle mass trending up — keep calories steady.'
+      }
+    }
+    if (phase === 'cut' && Math.abs(rate) > 0.1) {
+      if (muscleDelta < 0 && Math.abs(muscleDelta) > Math.abs(fatDelta)) {
+        bodyCompMsg = 'Losing muscle faster than fat — add ~100 kcal/day and keep protein high.'
+      } else if (fatDelta > 0 && rate < -0.5) {
+        bodyCompMsg = 'Fat mass should be dropping. Your deficit may be too aggressive.'
+      }
+    }
+  }
+
   // Recomposition: weight roughly stable but strength rising.
   if (opts.strengthTrendUp && Math.abs(rate) < 0.15) {
     return {
@@ -52,17 +84,19 @@ export function bulkCutCoach(
       }
     }
     if (rate > 0.6) {
+      const msg = bodyCompMsg || `You're up ${label} — faster than ideal for a lean bulk. Trim ~150 kcal/day to keep more of the gains as muscle.`
       return {
         id: uid(),
         title: 'Gaining too fast',
-        body: `You're up ${label} — faster than ideal for a lean bulk. Trim ~150 kcal/day to keep more of the gains as muscle.`,
+        body: msg,
         tone: 'warning',
       }
     }
+    const msg = bodyCompMsg || `Climbing at ${label} — right in the sweet spot for a controlled bulk. Keep calories where they are.`
     return {
       id: uid(),
       title: 'Bulk is working',
-      body: `Climbing at ${label} — right in the sweet spot for a controlled bulk. Keep calories where they are.`,
+      body: msg,
       tone: 'positive',
     }
   }

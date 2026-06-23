@@ -10,6 +10,7 @@ import {
   Info,
   ChevronDown,
   HeartPulse,
+  Menu,
 } from 'lucide-react'
 import { TabPage } from '@/components/layout/TabPage'
 import { Card, CardContent } from '@/components/ui/card'
@@ -236,6 +237,53 @@ export function Settings() {
             <Label className="shrink-0">Water target</Label>
             <div className="w-40"><NumberBox value={toDisplayWater(settings.waterTarget, settings)} suffix={waterUnit(settings)} onCommit={(n) => update({ waterTarget: fromDisplayWater(n, settings) })} /></div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Bottom Bar */}
+      <p className="mb-2 px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground"><Menu className="inline size-3.5" /> Bottom bar</p>
+      <Card className="mb-5">
+        <CardContent className="space-y-3 p-4">
+          <p className="text-xs text-muted-foreground">Show or hide tabs from the bottom navigation. Home and More are always available. You can access hidden pages through More.</p>
+          <div className="space-y-2">
+            {[
+              { key: 'workout', label: 'Workout', disabled: false },
+              { key: 'nutrition', label: 'Nutrition', disabled: false },
+              { key: 'weight', label: 'Weight', disabled: false },
+              { key: 'tasks', label: 'Tasks', disabled: false },
+              { key: 'analytics', label: 'Analytics', disabled: false },
+              { key: 'progress', label: 'Progress', disabled: false },
+              { key: 'photos', label: 'Photos', disabled: false },
+            ].map((tab) => {
+              const visible = settings.bottomBarVisibleKeys.includes(tab.key)
+              return (
+                <div key={tab.key} className="flex items-center justify-between rounded-xl border border-border/70 bg-card/50 px-3 py-2">
+                  <span className="text-sm font-medium">{tab.label}</span>
+                  <button
+                    onClick={() => {
+                      const updated = visible
+                        ? settings.bottomBarVisibleKeys.filter((k) => k !== tab.key)
+                        : [...settings.bottomBarVisibleKeys, tab.key]
+                      update({ bottomBarVisibleKeys: updated })
+                    }}
+                    disabled={!visible && settings.bottomBarVisibleKeys.filter((k) => k !== 'dashboard' && k !== 'more').length >= 5}
+                    className="text-xs font-semibold transition-colors disabled:opacity-50"
+                  >
+                    {visible ? (
+                      <span className="inline-flex items-center gap-1 text-success">
+                        <Check className="size-4" /> Shown
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Hidden</span>
+                    )}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+          <p className="rounded-xl bg-secondary/40 p-3 text-[11px] text-muted-foreground">
+            Minimum 3 visible tabs, maximum 5. Hidden pages are still accessible from More.
+          </p>
         </CardContent>
       </Card>
 

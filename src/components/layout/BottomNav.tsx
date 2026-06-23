@@ -1,18 +1,21 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { TABS, activeTabKey } from './navConfig'
+import { getVisibleTabs, activeTabKey } from './navConfig'
+import { useSettings } from '@/hooks/useSettings'
 import { cn } from '@/lib/utils'
 
 export function BottomNav() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const { settings } = useSettings()
   const active = activeTabKey(pathname)
+  const tabs = getVisibleTabs(settings.bottomBarVisibleKeys)
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40">
       <div className="mx-auto max-w-md px-3 pb-safe">
         <div className="glass flex items-stretch justify-around rounded-t-3xl border-t border-border/70">
-          {TABS.map((tab) => {
+          {tabs.map((tab) => {
             const isActive = tab.key === active
             const Icon = tab.icon
             return (

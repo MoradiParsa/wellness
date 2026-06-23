@@ -194,6 +194,43 @@ export interface WeightTrend {
   projectedGoalDate: string | null
 }
 
+// ---- body composition ----
+
+export const BONE_PERCENTAGE = 0.084 // 8.4%
+
+export interface BodyComposition {
+  fatMassKg: number
+  muscleMassKg: number
+  waterMassKg: number
+  boneMassKg: number
+  otherMassKg: number
+  fatPercent: number
+  musclePercent: number
+  waterPercent: number
+}
+
+/**
+ * Calculate body composition breakdown from a weight entry with body metrics.
+ * Percentages may overlap (smart scales estimate differently), so totals don't always equal 100%.
+ */
+export function calculateBodyComposition(entry: WeightEntry): BodyComposition {
+  const fat = entry.weight * (entry.bodyFat ?? 0) / 100
+  const muscle = entry.weight * (entry.muscle ?? 0) / 100
+  const water = entry.weight * (entry.water ?? 0) / 100
+  const bone = entry.weight * BONE_PERCENTAGE
+  const other = Math.max(0, entry.weight - fat - muscle - water - bone)
+  return {
+    fatMassKg: fat,
+    muscleMassKg: muscle,
+    waterMassKg: water,
+    boneMassKg: bone,
+    otherMassKg: other,
+    fatPercent: entry.bodyFat ?? 0,
+    musclePercent: entry.muscle ?? 0,
+    waterPercent: entry.water ?? 0,
+  }
+}
+
 export function computeWeightTrend(
   entries: WeightEntry[],
   goalWeightKg: number,
